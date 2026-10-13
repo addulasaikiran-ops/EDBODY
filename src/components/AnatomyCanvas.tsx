@@ -525,7 +525,7 @@ export default function AnatomyCanvas({
       const atlasRuntime = atlasRuntimeRef.current;
       if (atlasRuntime?.ready) {
         const atlasHit = raycaster.intersectObjects(atlasRuntime.meshes.filter((mesh) => mesh.visible), false)[0];
-        if (atlasHit && atlasHit.faceIndex !== undefined) {
+        if (atlasHit && atlasHit.faceIndex != null) {
           const ranges = atlasRuntime.ranges.get(atlasHit.object as THREE.Mesh) || [];
           const indexOffset = atlasHit.faceIndex * 3;
           let low = 0;
