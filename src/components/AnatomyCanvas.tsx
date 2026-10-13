@@ -429,7 +429,10 @@ export default function AnatomyCanvas({
       arteryMaterial,
       veinMaterial,
     ]);
-    selectable.forEach((mesh) => allSelectableMaterials.add(mesh.material));
+    selectable.forEach((mesh) => {
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach((material) => allSelectableMaterials.add(material));
+    });
     const applyMode = (mode: LayerMode) => {
       skeletonGroup.visible = mode === 'anatomy';
       vesselGroup.visible = mode === 'circulation';
