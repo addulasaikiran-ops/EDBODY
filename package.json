@@ -1,6 +1,7 @@
 {
   "name": "edbody-desktop",
   "version": "0.1.0",
+  "author": { "name": "EDBODY contributors", "email": "edbody-maintainers@users.noreply.github.com" },
   "private": true,
   "description": "EDBODY desktop human digital twin research prototype",
   "main": "electron/main.cjs",
