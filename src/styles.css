@@ -13,3 +13,51 @@
 .anatomy-caption small{margin-left:4px;color:#6f899a;font:7px var(--mono);letter-spacing:.045em}
 .anatomy-live-dot{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#77dfce;box-shadow:0 0 8px #77dfce55}
 @media(max-width:1150px){.anatomy-toolbar{gap:2px}.anatomy-toolbar>span{display:none}.anatomy-toolbar button{padding:6px}.anatomy-caption small{display:none}}
+
+
+/* Patient-to-Twin / TotalSegmentator integration */
+.scan-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:14px;align-items:start}
+.scan-card{padding:18px}
+.scan-card .card-head{margin-bottom:16px}
+.scan-pick{display:flex;align-items:center;gap:12px;min-height:76px;padding:13px;border:1px solid #2b3d4c;border-radius:9px;background:#101c27}
+.scan-pick>span{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border:1px solid #31514f;border-radius:8px;background:#173130;color:#8be3d4}
+.scan-pick>div{flex:1;min-width:0}
+.scan-pick b,.scan-pick small{display:block}
+.scan-pick b{font-size:11px;color:#d8e7ee}
+.scan-pick small{margin-top:5px;line-height:1.5;color:#8ca1b1;font-size:9px;overflow-wrap:anywhere}
+.scan-pick button,.scan-action{border:1px solid #345064;border-radius:7px;padding:9px 11px;background:#172634;color:#cae0e9;font-size:10px;white-space:nowrap}
+.scan-pick button:hover,.scan-action:hover{background:#203647}
+.scan-field-label{display:block;margin:18px 0 8px;color:#93a8b6;font-size:10px}
+.scan-segments{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scan-segments button{padding:10px;border:1px solid #2b3d4c;border-radius:7px;text-align:left;background:#111e29;color:#8da2b1;font-size:10px}
+.scan-segments button b,.scan-segments button small{display:block}
+.scan-segments button b{font-size:11px;color:#d3e3ec}
+.scan-segments button small{margin-top:5px;line-height:1.4}
+.scan-segments button.selected{border-color:#438579;background:#17302f;box-shadow:inset 0 0 0 1px #43857944}
+.scan-option{display:flex;align-items:center;gap:9px;margin-top:12px;padding:11px;border:1px solid #273b49;border-radius:7px;color:#a6bbc6;font-size:10px}
+.scan-option input{accent-color:#70d9c8}
+.scan-run-row{display:flex;gap:8px;margin-top:16px}
+.scan-run-row .primary{flex:1;justify-content:center}
+.scan-run-row button:disabled{opacity:.45;cursor:not-allowed}
+.scan-status{display:flex;align-items:flex-start;gap:9px;margin:15px 0;padding:11px;border:1px solid #2b3d4c;border-radius:8px;background:#111d28;color:#a4b7c2;font-size:10px;line-height:1.55}
+.scan-status.ready{border-color:#315a53;background:#122724;color:#a4e7d9}
+.scan-status.missing{border-color:#5a4936;background:#282016;color:#e3c49b}
+.scan-status svg{flex:0 0 auto;margin-top:1px}
+.scan-status b{display:block;margin-bottom:3px;color:#d5e5ec;font-size:10px}
+.scan-status code{color:#b8eadf;font-size:9px;overflow-wrap:anywhere}
+.scan-note{margin-top:13px;color:#7f95a5;font-size:9px;line-height:1.65}
+.scan-result{margin-top:12px;padding:13px;border:1px solid #315a53;border-radius:8px;background:#122724}
+.scan-result h3{margin:0 0 7px;color:#abeee0;font-size:12px}
+.scan-result p{margin:0;color:#9db8bd;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.scan-result.error{border-color:#614448;background:#291b22}
+.scan-result.error h3{color:#f2a9af}
+.scan-log{max-height:235px;overflow:auto;margin:0;padding:12px;border:1px solid #253746;border-radius:7px;background:#09121a;color:#91acba;font:9px/1.7 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.scan-steps{display:grid;gap:0}
+.scan-step{display:flex;gap:11px;padding:13px 0;border-bottom:1px solid #243340}
+.scan-step:last-child{border-bottom:0}
+.scan-step>span{display:grid;place-items:center;flex:0 0 25px;height:25px;border:1px solid #345064;border-radius:7px;color:#9be4d7;font:10px var(--mono)}
+.scan-step b,.scan-step small{display:block}
+.scan-step b{color:#d5e4ed;font-size:10px}
+.scan-step small{margin-top:5px;color:#859baa;font-size:9px;line-height:1.55}
+.scan-step a{color:#90dfd1}
+@media(max-width:1150px){.scan-layout{grid-template-columns:1fr}.scan-pick{align-items:flex-start}.scan-pick button{white-space:normal}}
