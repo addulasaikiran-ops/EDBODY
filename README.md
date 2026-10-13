@@ -21,3 +21,7 @@ Review all third-party model and anatomical-asset licenses before adding them or
 ## Patient-specific anatomy segmentation (optional)
 
 EDBODY can optionally invoke an independently installed [TotalSegmentator](https://github.com/kosmv/TotalSegmentator) CLI for local CT/MRI organ segmentation. See [the integration guide](docs/TOTALSEGMENTATOR.md) for setup, supported inputs, licensing notes, safety limits and current gaps. The CLI and its model weights are **not bundled** in EDBODY installers.
+
+## Detailed reference anatomy atlas
+
+EDBODY can optionally download and render the simplified BodyParts3D 4.0 atlas with named anatomical meshes. Open **Human twin** and select **Download detailed atlas**. The dataset is downloaded into local app data and is not bundled with the installer. Read [the atlas integration and attribution notes](docs/OPEN-ANATOMY-ATLAS.md) before redistributing atlas data.

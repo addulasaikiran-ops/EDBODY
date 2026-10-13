@@ -1,14 +1,30 @@
-const { app, BrowserWindow, shell, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, dialog, ipcMain, protocol } = require('electron');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
+const { Readable } = require('node:stream');
+const anatomyAtlas = require('../tools/anatomy-atlas/integration.cjs');
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'edbody-atlas', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 
 let selectedScanPath = null;
 let selectedOutputDirectory = null;
 let activeSegmentationChild = null;
 let segmentationJobStarting = false;
 let segmentationCancelRequested = false;
+let atlasBuildPromise = null;
+
+function anatomyAtlasDataDir() {
+  return path.join(app.getPath('userData'), 'anatomy-atlas');
+}
+
+function broadcastAnatomyAtlasProgress(progress) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send('anatomy-atlas:progress', progress);
+  }
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -199,7 +215,46 @@ ipcMain.handle('totalsegmentator:run', async (event, options) => {
   }
 });
 
+
+ipcMain.handle('anatomy-atlas:status', async () => anatomyAtlas.status(anatomyAtlasDataDir()));
+
+ipcMain.handle('anatomy-atlas:prepare', async () => {
+  if (!atlasBuildPromise) {
+    atlasBuildPromise = anatomyAtlas.prepareAtlas({
+      dataDir: anatomyAtlasDataDir(),
+      onProgress: broadcastAnatomyAtlasProgress,
+    }).catch((error) => {
+      broadcastAnatomyAtlasProgress({ phase: 'error', message: error.message || String(error) });
+      throw error;
+    });
+  }
+  const job = atlasBuildPromise;
+  try {
+    return await job;
+  } finally {
+    if (atlasBuildPromise === job) atlasBuildPromise = null;
+  }
+});
+
 app.whenReady().then(() => {
+  protocol.handle('edbody-atlas', async (request) => {
+    const url = new URL(request.url);
+    const filename = decodeURIComponent(url.pathname).split('/').filter(Boolean).join('/');
+    if (url.hostname !== 'local' || !['index.json', 'meshes.bin'].includes(filename)) {
+      return new Response('Not found', { status: 404 });
+    }
+    const file = path.join(anatomyAtlasDataDir(), 'build', filename);
+    try {
+      const stat = fsSync.statSync(file);
+      if (!stat.isFile()) return new Response('Not found', { status: 404 });
+      const mime = filename.endsWith('.json') ? 'application/json; charset=utf-8' : 'application/octet-stream';
+      return new Response(Readable.toWeb(fsSync.createReadStream(file)), {
+        headers: { 'content-type': mime, 'content-length': String(stat.size), 'cache-control': 'no-store' },
+      });
+    } catch {
+      return new Response('Atlas not installed', { status: 404 });
+    }
+  });
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

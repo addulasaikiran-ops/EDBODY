@@ -7,6 +7,56 @@ type LayerMode = 'organs' | 'anatomy' | 'circulation';
 type Vec3 = [number, number, number];
 type BodyRing = { y: number; rx: number; rz: number; cx?: number };
 
+type AtlasIndexElement = { k: string; c: number; t: string; o: number; n: number; b?: number[]; m?: number };
+type AtlasIndexConcept = { id?: string; name: string; side?: string };
+type AtlasIndex = {
+  format: string;
+  name: string;
+  version: string;
+  attribution?: string;
+  license?: string;
+  bbox: number[];
+  buffers: { positions: [number, number]; normals: [number, number]; indices: [number, number] };
+  elements: AtlasIndexElement[];
+  concepts: AtlasIndexConcept[];
+  categories: Record<string, { label: string; color: number[] }>;
+  counts?: { elements: number; concepts: number; triangles: number; vertices?: number };
+};
+type AtlasRange = { start: number; count: number; elementIndex: number };
+type AtlasRuntime = {
+  ready: true;
+  index: AtlasIndex;
+  indices: Uint32Array;
+  meshes: THREE.Mesh[];
+  ranges: Map<THREE.Mesh, AtlasRange[]>;
+  selectionIndices: Uint32Array;
+  selectionAttribute: THREE.BufferAttribute;
+  selectionGeometry: THREE.BufferGeometry;
+  selectionMesh: THREE.Mesh;
+  selectedElementIndex: number;
+  selectedCategory: string;
+};
+type AtlasUiState = 'checking' | 'missing' | 'preparing' | 'loading' | 'ready' | 'error';
+
+function organForAtlasStructure(label: string, category: string): OrganId {
+  const value = (category + ' ' + label).toLowerCase();
+  if (category === 'artery' || category === 'vein') return 'cardiovascular';
+  if (category === 'bone' || category === 'muscle' || category === 'cartilage' || category === 'ligament') return 'musculoskeletal';
+  if (category === 'nervous') return 'nervous';
+  if (category === 'skin' || category === 'fascia') return 'integumentary';
+  if (category === 'lymph') return 'immune';
+  if (/lung|bronch|trache|respirat|pulmonary/.test(value)) return 'respiratory';
+  if (/heart|cardiac|coronary|aorta|vena cava/.test(value)) return 'cardiovascular';
+  if (/liver|hepatic|gallbladder|bile duct/.test(value)) return 'hepatic';
+  if (/kidney|renal|ureter|nephron|urinary bladder/.test(value)) return 'renal';
+  if (/thyroid|adrenal|pituitary|hypothalam|endocrine|pancreas|islet/.test(value)) return 'endocrine';
+  if (/brain|cerebr|cerebell|spinal cord|cranial nerve|ganglion/.test(value)) return 'nervous';
+  if (/lymph|thymus|spleen|lymph node/.test(value)) return 'immune';
+  if (/uterus|ovary|testis|prostate|reproductive|vagina|penis|uterine/.test(value)) return 'reproductive';
+  return 'digestive';
+}
+
+
 const organColor: Record<OrganId, number> = {
   nervous: 0xaaa0ff,
   respiratory: 0x64bce6,
@@ -109,10 +159,74 @@ export default function AnatomyCanvas({
   const onSelectRef = useRef(onOrganSelect);
   const modeRef = useRef<LayerMode>('organs');
   const [layerMode, setLayerMode] = useState<LayerMode>('organs');
+  const [atlasState, setAtlasState] = useState<AtlasUiState>('checking');
+  const [atlasMessage, setAtlasMessage] = useState('Checking for the optional BodyParts3D atlas…');
+  const [selectedStructureLabel, setSelectedStructureLabel] = useState('');
+  const atlasRuntimeRef = useRef<AtlasRuntime | null>(null);
+  const loadDetailedAtlasRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => { activeOrganRef.current = activeOrgan; }, [activeOrgan]);
   useEffect(() => { onSelectRef.current = onOrganSelect; }, [onOrganSelect]);
   useEffect(() => { modeRef.current = layerMode; }, [layerMode]);
+
+  const installDetailedAtlas = async () => {
+    if (atlasState === 'preparing' || atlasState === 'loading' || atlasState === 'ready') return;
+    const api = window.edbodyDesktop;
+    if (!api?.prepareAnatomyAtlas) {
+      setAtlasState('error');
+      setAtlasMessage('Install and open the EDBODY desktop application to download local anatomy assets.');
+      return;
+    }
+    setAtlasState('preparing');
+    setAtlasMessage('Downloading BodyParts3D data (about 200 MB), then preparing the mesh atlas…');
+    try {
+      const result = await api.prepareAnatomyAtlas();
+      if (!result.ready) throw new Error(result.message || 'The atlas did not finish preparing.');
+      setAtlasState('loading');
+      await loadDetailedAtlasRef.current?.();
+    } catch (error) {
+      setAtlasState('error');
+      setAtlasMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+  useEffect(() => {
+    let mounted = true;
+    const api = window.edbodyDesktop;
+    const unsubscribe = api?.onAnatomyAtlasProgress?.((progress) => {
+      if (!mounted) return;
+      if (progress.message) setAtlasMessage(progress.message);
+      if (progress.phase === 'error') {
+        setAtlasState('error');
+      } else if (progress.phase === 'ready' && progress.ready) {
+        setAtlasState('loading');
+        void loadDetailedAtlasRef.current?.();
+      } else if (['download', 'parse', 'pack', 'orient', 'build', 'index', 'mirror', 'write'].includes(progress.phase)) {
+        setAtlasState('preparing');
+      }
+    });
+    if (!api?.anatomyAtlasStatus) {
+      setAtlasState('missing');
+      setAtlasMessage('Detailed reference anatomy can be installed from the EDBODY desktop app.');
+    } else {
+      void api.anatomyAtlasStatus().then((status) => {
+        if (!mounted) return;
+        if (status.ready) {
+          setAtlasState('loading');
+          setAtlasMessage('Found the local detailed anatomy atlas. Loading meshes…');
+          void loadDetailedAtlasRef.current?.();
+        } else {
+          setAtlasState('missing');
+          setAtlasMessage(status.message || 'Optional BodyParts3D atlas is not installed.');
+        }
+      }).catch((error) => {
+        if (!mounted) return;
+        setAtlasState('error');
+        setAtlasMessage(error instanceof Error ? error.message : String(error));
+      });
+    }
+    return () => { mounted = false; unsubscribe?.(); };
+  }, []);
+
 
   useEffect(() => {
     const host = hostRef.current;
@@ -408,6 +522,42 @@ export default function AnatomyCanvas({
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
+      const atlasRuntime = atlasRuntimeRef.current;
+      if (atlasRuntime?.ready) {
+        const atlasHit = raycaster.intersectObjects(atlasRuntime.meshes.filter((mesh) => mesh.visible), false)[0];
+        if (atlasHit && atlasHit.faceIndex !== undefined) {
+          const ranges = atlasRuntime.ranges.get(atlasHit.object as THREE.Mesh) || [];
+          const indexOffset = atlasHit.faceIndex * 3;
+          let low = 0;
+          let high = ranges.length - 1;
+          let picked: AtlasRange | undefined;
+          while (low <= high) {
+            const mid = (low + high) >>> 1;
+            const range = ranges[mid];
+            if (indexOffset < range.start) high = mid - 1;
+            else if (indexOffset >= range.start + range.count) low = mid + 1;
+            else { picked = range; break; }
+          }
+          if (picked) {
+            const element = atlasRuntime.index.elements[picked.elementIndex];
+            const concept = atlasRuntime.index.concepts[element.c];
+            const label = concept ? (concept.side ? concept.name + ' (' + concept.side + ')' : concept.name) : element.k;
+            atlasRuntime.selectionIndices.set(atlasRuntime.indices.subarray(element.o, element.o + element.n), 0);
+            atlasRuntime.selectionAttribute.needsUpdate = true;
+            atlasRuntime.selectionGeometry.setDrawRange(0, element.n);
+            atlasRuntime.selectionMesh.visible = true;
+            atlasRuntime.selectedElementIndex = picked.elementIndex;
+            atlasRuntime.selectedCategory = element.t;
+            setSelectedStructureLabel(label);
+            onSelectRef.current(organForAtlasStructure(label, element.t));
+            return;
+          }
+        }
+        atlasRuntime.selectionMesh.visible = false;
+        atlasRuntime.selectedElementIndex = -1;
+        setSelectedStructureLabel('');
+        return;
+      }
       const isVisible = (object: THREE.Object3D) => {
         let current: THREE.Object3D | null = object;
         while (current) {
@@ -438,6 +588,40 @@ export default function AnatomyCanvas({
       materials.forEach((material) => allSelectableMaterials.add(material));
     });
     const applyMode = (mode: LayerMode) => {
+      const atlasRuntime = atlasRuntimeRef.current;
+      if (atlasRuntime?.ready) {
+        bodyGroup.visible = false;
+        organGroup.visible = false;
+        skeletonGroup.visible = false;
+        vesselGroup.visible = false;
+        const visibleCategories = mode === 'organs'
+          ? new Set(['organ', 'nervous', 'skin'])
+          : mode === 'anatomy'
+            ? new Set(['bone', 'cartilage', 'ligament', 'muscle', 'nervous', 'skin', 'fascia'])
+            : new Set(['artery', 'vein', 'lymph', 'organ', 'skin']);
+        atlasRuntime.meshes.forEach((mesh) => {
+          const category = String(mesh.userData.atlasCategory || 'organ');
+          const material = mesh.material as THREE.MeshStandardMaterial;
+          mesh.visible = visibleCategories.has(category);
+          if (category === 'skin') material.opacity = mode === 'organs' ? 0.075 : mode === 'anatomy' ? 0.11 : 0.025;
+          else if (category === 'fascia') material.opacity = 0.14;
+          else if (mode === 'circulation' && category === 'organ') material.opacity = 0.21;
+          else material.opacity = 1;
+          material.transparent = material.opacity < 0.99;
+          material.depthWrite = material.opacity >= 0.85;
+        });
+        const selected = atlasRuntime.selectedElementIndex >= 0
+          ? atlasRuntime.index.elements[atlasRuntime.selectedElementIndex]
+          : null;
+        if (selected) {
+          const baseMesh = atlasRuntime.meshes.find((mesh) => mesh.userData.atlasCategory === selected.t);
+          atlasRuntime.selectionMesh.visible = !!baseMesh?.visible;
+        } else {
+          atlasRuntime.selectionMesh.visible = false;
+        }
+        return;
+      }
+      bodyGroup.visible = true;
       skeletonGroup.visible = mode === 'anatomy';
       vesselGroup.visible = mode === 'circulation';
       skinMaterial.opacity = mode === 'organs' ? 0.075 : mode === 'anatomy' ? 0.13 : 0.035;
@@ -452,6 +636,173 @@ export default function AnatomyCanvas({
       arteryMaterial.transparent = true;
       veinMaterial.transparent = true;
     };
+
+
+    let atlasLoadPromise: Promise<void> | null = null;
+    const loadDetailedAtlas = async (): Promise<void> => {
+      if (atlasRuntimeRef.current?.ready) return;
+      if (atlasLoadPromise) return atlasLoadPromise;
+      const job = (async () => {
+        setAtlasState('loading');
+        setAtlasMessage('Loading BodyParts3D reference meshes…');
+        const [indexResponse, meshResponse] = await Promise.all([
+          fetch('edbody-atlas://local/index.json', { cache: 'no-store' }),
+          fetch('edbody-atlas://local/meshes.bin', { cache: 'no-store' }),
+        ]);
+        if (!indexResponse.ok || !meshResponse.ok) throw new Error('The detailed atlas could not be read from local app data.');
+        const index = await indexResponse.json() as AtlasIndex;
+        if (index.format !== 'open-anatomy-atlas/1') throw new Error('This atlas format is not supported by EDBODY.');
+        const binary = await meshResponse.arrayBuffer();
+        const [positionOffset, positionBytes] = index.buffers.positions;
+        const [normalOffset, normalBytes] = index.buffers.normals;
+        const [indexOffset, indexBytes] = index.buffers.indices;
+        const positions = new Float32Array(binary, positionOffset, positionBytes / 4);
+        const normalWords = new Int16Array(binary, normalOffset, normalBytes / 2);
+        const normals = normalWords.subarray(0, positions.length);
+        const allIndices = new Uint32Array(binary, indexOffset, indexBytes / 4);
+        const positionAttribute = new THREE.BufferAttribute(positions, 3);
+        const normalAttribute = new THREE.BufferAttribute(normals, 3, true);
+
+        const categories = new Map<string, { values: number[]; ranges: AtlasRange[] }>();
+        index.elements.forEach((element, elementIndex) => {
+          if (!element.n || element.o < 0 || element.o + element.n > allIndices.length) return;
+          const category = element.t || 'organ';
+          let group = categories.get(category);
+          if (!group) {
+            group = { values: [], ranges: [] };
+            categories.set(category, group);
+          }
+          const start = group.values.length;
+          for (let i = element.o; i < element.o + element.n; i++) group.values.push(allIndices[i]);
+          group.ranges.push({ start, count: element.n, elementIndex });
+        });
+
+        const atlasGroup = new THREE.Group();
+        atlasGroup.name = 'BodyParts3D 4.0 reference atlas';
+        const categoryMeshes: THREE.Mesh[] = [];
+        const rangesByMesh = new Map<THREE.Mesh, AtlasRange[]>();
+        const box = new THREE.Box3(
+          new THREE.Vector3(index.bbox[0], index.bbox[1], index.bbox[2]),
+          new THREE.Vector3(index.bbox[3], index.bbox[4], index.bbox[5]),
+        );
+        const center = box.getCenter(new THREE.Vector3());
+        const radius = Math.max(0.1, box.getSize(new THREE.Vector3()).length() / 2);
+        const triangleBounds = new THREE.Sphere(center.clone(), radius);
+
+        const categoryOrgan = (category: string): OrganId => {
+          if (category === 'artery' || category === 'vein') return 'cardiovascular';
+          if (category === 'bone' || category === 'cartilage' || category === 'ligament' || category === 'muscle') return 'musculoskeletal';
+          if (category === 'nervous') return 'nervous';
+          if (category === 'skin' || category === 'fascia') return 'integumentary';
+          if (category === 'lymph') return 'immune';
+          return 'digestive';
+        };
+
+        for (const [category, data] of categories) {
+          const categoryIndices = new Uint32Array(data.values);
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute('position', positionAttribute);
+          geometry.setAttribute('normal', normalAttribute);
+          geometry.setIndex(new THREE.BufferAttribute(categoryIndices, 1));
+          geometry.boundingBox = box.clone();
+          geometry.boundingSphere = triangleBounds.clone();
+          const rgb = index.categories[category]?.color || [0.78, 0.5, 0.52];
+          const color = new THREE.Color().setRGB(rgb[0], rgb[1], rgb[2], THREE.SRGBColorSpace);
+          const material = new THREE.MeshStandardMaterial({
+            color,
+            roughness: 0.68,
+            side: THREE.DoubleSide,
+            transparent: category === 'skin' || category === 'fascia',
+            opacity: category === 'skin' ? 0.075 : category === 'fascia' ? 0.14 : 1,
+            depthWrite: category !== 'skin' && category !== 'fascia',
+          });
+          material.userData.organId = categoryOrgan(category);
+          material.userData.baseColor = color.getHex();
+          material.userData.baseOpacity = material.opacity;
+          allSelectableMaterials.add(material);
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.name = index.categories[category]?.label || category;
+          mesh.userData.atlasCategory = category;
+          mesh.userData.organId = categoryOrgan(category);
+          mesh.frustumCulled = false;
+          atlasGroup.add(mesh);
+          categoryMeshes.push(mesh);
+          rangesByMesh.set(mesh, data.ranges);
+        }
+
+        const maxElementIndices = index.elements.reduce((max, element) => Math.max(max, element.n || 0), 0);
+        const selectionIndices = new Uint32Array(maxElementIndices);
+        const selectionGeometry = new THREE.BufferGeometry();
+        selectionGeometry.setAttribute('position', positionAttribute);
+        selectionGeometry.setAttribute('normal', normalAttribute);
+        const selectionAttribute = new THREE.BufferAttribute(selectionIndices, 1);
+        selectionGeometry.setIndex(selectionAttribute);
+        selectionGeometry.boundingBox = box.clone();
+        selectionGeometry.boundingSphere = triangleBounds.clone();
+        selectionGeometry.setDrawRange(0, 0);
+        const selectionMaterial = new THREE.MeshStandardMaterial({
+          color: 0x7ae1d0,
+          emissive: 0x23594f,
+          emissiveIntensity: 0.55,
+          roughness: 0.45,
+          metalness: 0.02,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          transparent: true,
+          opacity: 0.88,
+          depthWrite: false,
+        });
+        const selectionMesh = new THREE.Mesh(selectionGeometry, selectionMaterial);
+        selectionMesh.name = 'Selected anatomical structure';
+        selectionMesh.renderOrder = 5;
+        selectionMesh.frustumCulled = false;
+        selectionMesh.visible = false;
+        atlasGroup.add(selectionMesh);
+
+        scene.add(atlasGroup);
+        const runtime: AtlasRuntime = {
+          ready: true,
+          index,
+          indices: allIndices,
+          meshes: categoryMeshes,
+          ranges: rangesByMesh,
+          selectionIndices,
+          selectionAttribute,
+          selectionGeometry,
+          selectionMesh,
+          selectedElementIndex: -1,
+          selectedCategory: '',
+        };
+        atlasRuntimeRef.current = runtime;
+        bodyGroup.visible = false;
+        organGroup.visible = false;
+        skeletonGroup.visible = false;
+        vesselGroup.visible = false;
+        controls.target.copy(center);
+        const bodyHeight = Math.max(1.1, box.max.y - box.min.y);
+        camera.position.set(center.x, center.y + 0.015, center.z + Math.max(bodyHeight * 2.45, 3.1));
+        controls.minDistance = Math.max(bodyHeight * 1.05, 1.6);
+        controls.maxDistance = Math.max(bodyHeight * 8, 7.5);
+        controls.update();
+        previousMode = null;
+        applyMode(modeRef.current);
+        previousMode = modeRef.current;
+        setSelectedStructureLabel('');
+        setAtlasState('ready');
+        setAtlasMessage('Loaded ' + index.name + ' ' + index.version + ': ' + index.elements.length.toLocaleString() + ' anatomical meshes. Generic adult reference anatomy, not patient-specific.');
+      })();
+      atlasLoadPromise = job;
+      try {
+        await job;
+      } catch (error) {
+        setAtlasState('error');
+        setAtlasMessage(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (atlasLoadPromise === job) atlasLoadPromise = null;
+      }
+    };
+    loadDetailedAtlasRef.current = loadDetailedAtlas;
 
     let previousMode: LayerMode | null = null;
     let previousActive: OrganId | null = null;
@@ -493,6 +844,8 @@ export default function AnatomyCanvas({
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      atlasRuntimeRef.current = null;
+      loadDetailedAtlasRef.current = null;
       controls.dispose();
       scene.traverse((obj) => {
         if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
@@ -507,7 +860,7 @@ export default function AnatomyCanvas({
   }, []);
 
   return (
-    <div className="anatomy-stage" aria-label="Interactive procedural human anatomy visualization">
+    <div className="anatomy-stage" aria-label="Interactive human anatomy visualization">
       <div ref={hostRef} className="anatomy-canvas" />
       <div className="anatomy-toolbar" role="group" aria-label="Anatomy display layers">
         <span>LAYERS</span>
@@ -521,10 +874,20 @@ export default function AnatomyCanvas({
           </button>
         ))}
       </div>
+      <div className="anatomy-atlas-control">
+        {atlasState === 'ready' ? (
+          <span className="anatomy-atlas-ready"><span>●</span> BODYPARTS3D REFERENCE ACTIVE</span>
+        ) : (
+          <button type="button" disabled={atlasState === 'preparing' || atlasState === 'loading'} onClick={() => void installDetailedAtlas()}>
+            {atlasState === 'preparing' ? 'Preparing atlas…' : atlasState === 'loading' ? 'Loading meshes…' : atlasState === 'error' ? 'Retry detailed atlas' : 'Download detailed atlas · ~200 MB'}
+          </button>
+        )}
+        {atlasState !== 'ready' && <small>{atlasMessage}</small>}
+      </div>
       <div className="anatomy-caption">
         <span className="anatomy-live-dot" />
-        <span>{organName[activeOrgan]}</span>
-        <small>PROCEDURAL MODEL · NOT TO SCALE</small>
+        <span>{selectedStructureLabel || organName[activeOrgan]}</span>
+        <small>{atlasState === 'ready' ? 'BODYPARTS3D 4.0 · GENERIC ADULT REFERENCE' : 'PROCEDURAL MODEL · NOT TO SCALE'}</small>
       </div>
     </div>
   );

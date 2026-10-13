@@ -61,3 +61,15 @@
 .scan-step small{margin-top:5px;color:#859baa;font-size:9px;line-height:1.55}
 .scan-step a{color:#90dfd1}
 @media(max-width:1150px){.scan-layout{grid-template-columns:1fr}.scan-pick{align-items:flex-start}.scan-pick button{white-space:normal}}
+
+
+/* Detailed BodyParts3D atlas install/status control */
+.anatomy-atlas-control{position:absolute;z-index:3;right:11px;bottom:11px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:min(56%,420px)}
+.anatomy-atlas-control button{max-width:100%;border:1px solid #3c726b;border-radius:7px;padding:8px 10px;background:#142d2d;color:#b8f2e7;font-size:9px;text-align:right;box-shadow:0 5px 18px #0005}
+.anatomy-atlas-control button:hover{background:#1a3c3b}
+.anatomy-atlas-control button:disabled{opacity:.75;cursor:progress}
+.anatomy-atlas-control>small{max-width:100%;padding:5px 7px;border:1px solid #253a47;border-radius:5px;background:#0b151de8;color:#9aafbc;font-size:8px;line-height:1.45;text-align:right;overflow-wrap:anywhere}
+.anatomy-atlas-ready{padding:7px 9px;border:1px solid #315e56;border-radius:6px;background:#102522e8;color:#a9e7dc;font:8px var(--mono);letter-spacing:.04em}
+.anatomy-atlas-ready>span{color:#74ddc9}
+.anatomy-caption{max-width:calc(100% - 24px)}
+@media(max-width:1150px){.anatomy-atlas-control{max-width:58%}.anatomy-atlas-control button{padding:6px 7px;font-size:8px}.anatomy-atlas-control>small{display:none}.anatomy-atlas-ready{font-size:7px}}

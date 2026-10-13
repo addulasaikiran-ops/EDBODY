@@ -9,12 +9,18 @@ export interface FileSelection { cancelled: boolean; path?: string; kind?: 'file
 export interface DirectorySelection { cancelled: boolean; path?: string; }
 export interface SegmentationRunOptions { modality: 'ct' | 'mr'; fast: boolean; }
 export interface SegmentationRunResult { ok: boolean; cancelled?: boolean; error?: string; details?: string; outputPath?: string; outputCount?: number; modality?: 'ct' | 'mr'; fast?: boolean; }
+export interface AnatomyAtlasCounts { elements: number; concepts: number; triangles: number; vertices?: number; mirrored?: number; }
+export interface AnatomyAtlasStatus { ready: boolean; dataDir?: string; name?: string; version?: string; counts?: AnatomyAtlasCounts | null; attribution?: string; license?: string; licenseUrl?: string; bytes?: number; message?: string; }
+export interface AnatomyAtlasProgress { phase: string; message: string; loaded?: number; total?: number; ready?: boolean; file?: string; }
 declare global {
   interface Window {
     edbodyDesktop?: {
       platform: string;
       version: string;
       shell: string;
+      anatomyAtlasStatus?: () => Promise<AnatomyAtlasStatus>;
+      prepareAnatomyAtlas?: () => Promise<AnatomyAtlasStatus>;
+      onAnatomyAtlasProgress?: (callback: (progress: AnatomyAtlasProgress) => void) => () => void;
       checkTotalSegmentator?: () => Promise<TotalSegmentatorCheck>;
       chooseScanInput?: () => Promise<FileSelection>;
       chooseOutputDirectory?: () => Promise<DirectorySelection>;
