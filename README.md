@@ -18,3 +18,6 @@ This is a software prototype, not a medical product. The 3D body is schematic ra
 Profile values are demo data held in application memory only. Do not enter real patient data until consent-aware secure storage, access controls and auditing are implemented. The whole-body architecture is prepared for future model adapters, but no clinical model is currently validated by this application.
 
 Review all third-party model and anatomical-asset licenses before adding them or distributing the app.
+## Patient-specific anatomy segmentation (optional)
+
+EDBODY can optionally invoke an independently installed [TotalSegmentator](https://github.com/kosmv/TotalSegmentator) CLI for local CT/MRI organ segmentation. See [the integration guide](docs/TOTALSEGMENTATOR.md) for setup, supported inputs, licensing notes, safety limits and current gaps. The CLI and its model weights are **not bundled** in EDBODY installers.
