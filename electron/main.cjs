@@ -7,6 +7,7 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 let selectedScanPath = null;
 let selectedOutputDirectory = null;
 let activeSegmentationChild = null;
+let segmentationJobStarting = false;
 let segmentationCancelRequested = false;
 
 function createWindow() {
@@ -114,8 +115,9 @@ ipcMain.handle('totalsegmentator:cancel', async () => {
 });
 
 ipcMain.handle('totalsegmentator:run', async (event, options) => {
-  if (activeSegmentationChild) return { ok: false, error: 'A segmentation job is already running.' };
+  if (segmentationJobStarting || activeSegmentationChild) return { ok: false, error: 'A segmentation job is already running.' };
   if (!selectedScanPath || !selectedOutputDirectory) return { ok: false, error: 'Select a scan and output folder first.' };
+  segmentationJobStarting = true;
   const modality = options && options.modality === 'mr' ? 'mr' : 'ct';
   const fast = !options || options.fast !== false;
   try {
@@ -137,7 +139,7 @@ ipcMain.handle('totalsegmentator:run', async (event, options) => {
     if (modality === 'mr') args.push('--task', 'total_mr');
     if (fast) args.push('--fast');
 
-    publishSegmentationProgress(event, 'Starting: ' + ready.command + ' ' + args.map((v) => JSON.stringify(v)).join(' '));
+    publishSegmentationProgress(event, 'Starting TotalSegmentator (' + modality.toUpperCase() + (fast ? ', fast mode).' : ', full mode).'));
     publishSegmentationProgress(event, 'Input is processed locally. The first run may need to download model weights.');
     segmentationCancelRequested = false;
 
@@ -192,6 +194,8 @@ ipcMain.handle('totalsegmentator:run', async (event, options) => {
     return result;
   } catch (error) {
     return { ok: false, error: error.message || String(error) };
+  } finally {
+    segmentationJobStarting = false;
   }
 });
 
