@@ -249,7 +249,7 @@ app.whenReady().then(() => {
       if (!stat.isFile()) return new Response('Not found', { status: 404 });
       const mime = filename.endsWith('.json') ? 'application/json; charset=utf-8' : 'application/octet-stream';
       return new Response(Readable.toWeb(fsSync.createReadStream(file)), {
-        headers: { 'content-type': mime, 'content-length': String(stat.size), 'cache-control': 'no-store' },
+        headers: { 'content-type': mime, 'content-length': String(stat.size), 'cache-control': 'no-store', 'access-control-allow-origin': '*' },
       });
     } catch {
       return new Response('Atlas not installed', { status: 404 });

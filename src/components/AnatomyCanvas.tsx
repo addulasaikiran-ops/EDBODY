@@ -876,7 +876,7 @@ export default function AnatomyCanvas({
       </div>
       <div className="anatomy-atlas-control">
         {atlasState === 'ready' ? (
-          <span className="anatomy-atlas-ready"><span>●</span> BODYPARTS3D REFERENCE ACTIVE</span>
+          <span className="anatomy-atlas-ready"><span>●</span> BODYPARTS3D · © DBCLS · CC BY 4.0</span>
         ) : (
           <button type="button" disabled={atlasState === 'preparing' || atlasState === 'loading'} onClick={() => void installDetailedAtlas()}>
             {atlasState === 'preparing' ? 'Preparing atlas…' : atlasState === 'loading' ? 'Loading meshes…' : atlasState === 'error' ? 'Retry detailed atlas' : 'Download detailed atlas · ~200 MB'}
