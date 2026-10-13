@@ -162,6 +162,10 @@ export default function AnatomyCanvas({
     boneAccent.userData.baseColor = 0x819eab;
     const arteryMaterial = new THREE.MeshStandardMaterial({ color: 0xee647a, roughness: 0.38, emissive: 0x39101a, emissiveIntensity: 0.08 });
     const veinMaterial = new THREE.MeshStandardMaterial({ color: 0x4a9ed0, roughness: 0.42, emissive: 0x0d2437, emissiveIntensity: 0.08 });
+    arteryMaterial.userData.organId = 'cardiovascular';
+    arteryMaterial.userData.baseColor = 0xee647a;
+    veinMaterial.userData.organId = 'cardiovascular';
+    veinMaterial.userData.baseColor = 0x4a9ed0;
     const organMaterials = {} as Record<OrganId, THREE.MeshStandardMaterial>;
     (Object.keys(organColor) as OrganId[]).forEach((id) => {
       organMaterials[id] = new THREE.MeshStandardMaterial({
