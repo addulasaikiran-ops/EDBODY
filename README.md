@@ -1,7 +1,20 @@
 # EDBODY Desktop
 
-Installable desktop research prototype for a personalized human digital twin. Built with Electron, React, TypeScript and Three.js.
+EDBODY is an installable desktop research prototype built with Electron, React, TypeScript and Three.js. It includes a selectable 3D schematic human, local demo health profile, meal-response experiment screen and model registry.
 
-> Research prototype only. The 3D anatomy is schematic and the meal-response simulation is illustrative and not clinically validated. Do not enter real patient data; secure persistence and clinical validation are not implemented yet.
+## Run
+Requirements: Node.js 20+ and npm.
 
-See the desktop source bundle for setup and architecture.
+```sh
+npm install
+npm run dev
+```
+
+Package for the current operating system with `npm run dist`. Outputs are written to `release/`.
+
+## Safety and current limitations
+This is a software prototype, not a medical product. The 3D body is schematic rather than anatomically precise. The meal-response function is an illustrative curve generator, not a validated physiological model. Do not use its output for diagnosis, treatment, medication decisions or dietary health decisions.
+
+Profile values are demo data held in application memory only. Do not enter real patient data until consent-aware secure storage, access controls and auditing are implemented. The whole-body architecture is prepared for future model adapters, but no clinical model is currently validated by this application.
+
+Review all third-party model and anatomical-asset licenses before adding them or distributing the app.
