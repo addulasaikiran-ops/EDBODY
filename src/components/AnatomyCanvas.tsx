@@ -154,6 +154,12 @@ export default function AnatomyCanvas({
     });
     const boneMaterial = new THREE.MeshStandardMaterial({ color: 0xc8d0cf, roughness: 0.64, metalness: 0.02 });
     const boneAccent = new THREE.MeshStandardMaterial({ color: 0x819eab, roughness: 0.55 });
+    skinMaterial.userData.organId = 'integumentary';
+    skinMaterial.userData.baseColor = 0x8ca4b6;
+    boneMaterial.userData.organId = 'musculoskeletal';
+    boneMaterial.userData.baseColor = 0xc8d0cf;
+    boneAccent.userData.organId = 'musculoskeletal';
+    boneAccent.userData.baseColor = 0x819eab;
     const arteryMaterial = new THREE.MeshStandardMaterial({ color: 0xee647a, roughness: 0.38, emissive: 0x39101a, emissiveIntensity: 0.08 });
     const veinMaterial = new THREE.MeshStandardMaterial({ color: 0x4a9ed0, roughness: 0.42, emissive: 0x0d2437, emissiveIntensity: 0.08 });
     const organMaterials = {} as Record<OrganId, THREE.MeshStandardMaterial>;
@@ -164,6 +170,7 @@ export default function AnatomyCanvas({
         transparent: true, opacity: 0.94, depthWrite: true,
       });
       organMaterials[id].userData.organId = id;
+      organMaterials[id].userData.baseColor = organColor[id];
       organMaterials[id].userData.baseOpacity = 0.94;
     });
 
@@ -256,11 +263,22 @@ export default function AnatomyCanvas({
     }
     addTube(skeletonGroup, [[-0.34, -0.81, 0.08], [-0.22, -0.96, 0.15], [0, -1.0, 0.17], [0.22, -0.96, 0.15], [0.34, -0.81, 0.08]], 0.045, boneMaterial);
 
+    // Skeleton geometry participates in selection only while its parent layer is visible.
+    skeletonGroup.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.userData.organId = 'musculoskeletal';
+        selectable.push(object);
+      }
+    });
+
     // Reusable organ shapes have one shared material per system, with real clickable meshes.
     const organBall = (id: OrganId, p: Vec3, s: Vec3, rz = 0) =>
       addBall(organGroup, p, s, organMaterials[id], id, rz, true);
-    const organTube = (id: OrganId, points: Vec3[], radius: number) =>
-      addTube(organGroup, points, radius, organMaterials[id], id, 10);
+    const organTube = (id: OrganId, points: Vec3[], radius: number) => {
+      const mesh = addTube(organGroup, points, radius, organMaterials[id], id, 10);
+      selectable.push(mesh);
+      return mesh;
+    };
 
     // Brain: paired hemispheres, cerebellum and visible surface folds.
     organBall('nervous', [-0.105, 2.32, 0.12], [0.157, 0.185, 0.148], -0.08);
@@ -386,16 +404,32 @@ export default function AnatomyCanvas({
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(selectable, false).find((item) => item.object.userData.organId);
+      const isVisible = (object: THREE.Object3D) => {
+        let current: THREE.Object3D | null = object;
+        while (current) {
+          if (!current.visible) return false;
+          current = current.parent;
+        }
+        return true;
+      };
+      const hit = raycaster.intersectObjects(selectable, false).find((item) =>
+        item.object.userData.organId && isVisible(item.object)
+      );
       const id = hit?.object.userData.organId as OrganId | undefined;
       if (id) onSelectRef.current(id);
     };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
 
-    const allSelectableMaterials = new Set<THREE.Material>();
+    const allSelectableMaterials = new Set<THREE.Material>([
+      ...Object.values(organMaterials),
+      skinMaterial,
+      boneMaterial,
+      boneAccent,
+      arteryMaterial,
+      veinMaterial,
+    ]);
     selectable.forEach((mesh) => allSelectableMaterials.add(mesh.material));
-    const organMaterialsSet = new Set<THREE.Material>(Object.values(organMaterials));
     const applyMode = (mode: LayerMode) => {
       skeletonGroup.visible = mode === 'anatomy';
       vesselGroup.visible = mode === 'circulation';
