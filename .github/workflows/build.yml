@@ -1,0 +1,37 @@
+name: Build EDBODY desktop app
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Package desktop application
+        run: npm run dist
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: edbody-${{ matrix.os }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
