@@ -58,8 +58,8 @@ class AccessPrincipal(ContractModel):
     by a future trusted identity adapter, never directly from request JSON.
     """
 
-    principal_reference: UUID
-    roles: tuple[Role, ...] = Field(min_length=1, max_length=3)
+    principal_reference: str = Field(min_length=1, max_length=512)
+    roles: tuple[Role, ...] = Field(min_length=0, max_length=3)
 
     @field_validator("roles")
     @classmethod
