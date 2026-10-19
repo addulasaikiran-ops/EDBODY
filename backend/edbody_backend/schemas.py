@@ -26,7 +26,7 @@ from pydantic import (
 MAX_ABS_NUMERIC_VALUE = 1_000_000_000_000.0
 
 
-def _require_explicit_iso_timestamp(value: object) -> object:
+def require_explicit_iso_timestamp(value: object) -> object:
     """Reject epoch numbers and timestamp strings without an explicit offset."""
     if value is None:
         return value
@@ -108,7 +108,7 @@ class Provenance(ContractModel):
     @field_validator("source_recorded_at", mode="before")
     @classmethod
     def source_timestamp_requires_explicit_offset(cls, value: object) -> object:
-        return _require_explicit_iso_timestamp(value)
+        return require_explicit_iso_timestamp(value)
 
     @model_validator(mode="after")
     def derived_observation_has_lineage(self) -> "Provenance":
@@ -157,7 +157,7 @@ class ObservationV1(ContractModel):
     @field_validator("observed_at", mode="before")
     @classmethod
     def observation_timestamp_requires_explicit_offset(cls, value: object) -> object:
-        return _require_explicit_iso_timestamp(value)
+        return require_explicit_iso_timestamp(value)
 
     @model_validator(mode="after")
     def value_unit_and_missingness_are_consistent(self) -> "ObservationV1":
