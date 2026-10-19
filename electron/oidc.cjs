@@ -84,9 +84,12 @@ function readDesktopConfig(environ = process.env) {
   }
 
   return Object.freeze({
-    issuer: issuerUrl.toString(),
+    // Preserve issuer/audience identifiers exactly as configured. OIDC issuer
+    // and JWT audience matching is string-exact; URL normalization can silently
+    // add a trailing slash or remove a default port.
+    issuer: environ.EDBODY_OIDC_ISSUER.trim(),
     clientId,
-    audience: audienceUrl.toString(),
+    audience: environ.EDBODY_OIDC_AUDIENCE.trim(),
     apiBaseUrl: apiUrl.origin,
     scope: scopes.join(' '),
   });
