@@ -1,6 +1,6 @@
 # Backend authentication and authorization (M3 foundation)
 
-**Status:** OIDC JWT access-token verification and a reusable authorization dependency are implemented and tested. EDBODY does not yet have an interactive login flow, a configured identity provider, a consent database, a durable audit sink, or a protected patient-data route.
+**Status:** OIDC JWT access-token verification, an Electron system-browser Authorization Code + PKCE flow, and a reusable authorization dependency are implemented and tested. EDBODY has not yet been configured against a real identity provider, and it has no consent database, durable audit sink, or protected patient-data route. See [Desktop Authentication](DESKTOP-AUTHENTICATION.md) for desktop-side setup.
 
 ## Configuration
 
@@ -65,7 +65,7 @@ However, the default consent-repository and audit-sink dependencies deliberately
 ## What is still required
 
 1. Choose the target institution's supported identity provider and configure how its trusted access tokens represent roles. The current role mapping and role policy are prototype defaults.
-2. Decide how the Electron desktop obtains an access token safely. If it is a public desktop client, use an approved authorization-code flow with PKCE via the system browser; never embed a client secret in the desktop app. The interactive flow is not implemented here.
+2. Configure the desktop's environment variables with the selected provider and register it as a public native client using a loopback redirect; see [Desktop Authentication](DESKTOP-AUTHENTICATION.md). The implemented flow uses the system browser and PKCE, but no provider-specific setup has been verified yet.
 3. Implement trusted consent/grant storage, including revocation and subject binding.
 4. Implement a durable append-only/tamper-evident audit sink. Protected operations fail closed if audit append fails.
 5. Wire storage-level authorization as well as route-level authorization; a route check alone is not enough if background workers or direct storage paths bypass it.
