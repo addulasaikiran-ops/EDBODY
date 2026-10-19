@@ -83,15 +83,24 @@ class OIDCSettings:
             or not issuer_parts.netloc
             or issuer_parts.query
             or issuer_parts.fragment
+            or issuer_parts.username is not None
+            or issuer_parts.password is not None
         ):
             raise OIDCConfigurationError(
                 "EDBODY_OIDC_ISSUER must be an HTTPS issuer URL without query or fragment"
             )
 
         jwks_parts = urlparse(jwks_url)
-        if jwks_parts.scheme != "https" or not jwks_parts.netloc or jwks_parts.fragment:
+        if (
+            jwks_parts.scheme != "https"
+            or not jwks_parts.netloc
+            or jwks_parts.query
+            or jwks_parts.fragment
+            or jwks_parts.username is not None
+            or jwks_parts.password is not None
+        ):
             raise OIDCConfigurationError(
-                "EDBODY_OIDC_JWKS_URL must be an HTTPS URL without a fragment"
+                "EDBODY_OIDC_JWKS_URL must be an HTTPS URL without query, fragment, or embedded credentials"
             )
 
         if not ROLE_CLAIM_PATTERN.fullmatch(role_claim):
@@ -111,7 +120,7 @@ class OIDCSettings:
 def _cached_jwks_client(jwks_url: str) -> PyJWKClient:
     # PyJWKClient caches the JWKS document and refreshes it when a key ID is
     # unknown. The URL is trusted deployment configuration, never token input.
-    return PyJWKClient(jwks_url, cache_keys=True)
+    return PyJWKClient(jwks_url, cache_keys=True, timeout=5)
 
 
 def verify_access_token(
