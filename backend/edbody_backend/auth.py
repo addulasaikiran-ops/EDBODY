@@ -152,7 +152,7 @@ def verify_access_token(
             audience=settings.audience,
             issuer=settings.issuer,
             leeway=CLOCK_SKEW_SECONDS,
-            options={"require": ["exp", "iss", "sub", "aud"]},
+            options={"require": ["exp", "iss", "sub", "aud", "iat", "jti", "client_id"]},
         )
     except jwt.InvalidTokenError as exc:
         raise InvalidBearerToken("token validation failed") from exc
@@ -165,6 +165,10 @@ def verify_access_token(
         or subject.strip() != subject
     ):
         raise InvalidIdentityClaims("token subject claim is missing or invalid")
+    for claim_name in ("client_id", "jti"):
+        claim_value = claims.get(claim_name)
+        if not isinstance(claim_value, str) or not claim_value.strip():
+            raise InvalidIdentityClaims(f"token {claim_name} claim is missing or invalid")
 
     raw_roles = claims.get(settings.role_claim, [])
     if not isinstance(raw_roles, list) or any(
