@@ -63,8 +63,8 @@ function createWindow() {
   // CI-only smoke mode verifies the packaged renderer can load and React mounts.
   // It does not exercise native dialogs or clinical functionality.
   if (process.env.EDBODY_SMOKE_TEST === '1') {
-    win.webContents.on('console-message', (_event, details) => {
-      console.log('EDBODY_RENDERER_CONSOLE', JSON.stringify(details));
+    win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+      console.log('EDBODY_RENDERER_CONSOLE', JSON.stringify({ level, message, line, sourceId }));
     });
     win.webContents.on('render-process-gone', (_event, details) => {
       console.error('EDBODY_RENDER_PROCESS_GONE', JSON.stringify(details));
