@@ -121,6 +121,20 @@ def verify_access_token(
     jwks_client: PyJWKClient | None = None,
 ) -> AccessPrincipal:
     """Verify a signed JWT and derive an EDBODY principal from trusted claims."""
+    try:
+        header = jwt.get_unverified_header(token)
+    except jwt.InvalidTokenError as exc:
+        raise InvalidBearerToken("token header is malformed") from exc
+
+    # RFC 9068's explicit at+jwt type prevents accepting an OIDC ID token
+    # as an API bearer token. Header values are still untrusted until the
+    # signature is verified; this check is only an early rejection.
+    if (
+        header.get("typ") not in {"at+jwt", "application/at+jwt"}
+        or header.get("alg") != "RS256"
+    ):
+        raise InvalidBearerToken("token is not a supported JWT access token")
+
     client = jwks_client or _cached_jwks_client(settings.jwks_url)
 
     try:
