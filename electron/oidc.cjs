@@ -406,6 +406,9 @@ async function exchangeAuthorizationCode({ fetchImpl = fetch, metadata, config, 
   } catch {
     throw new OidcFlowError('Could not securely exchange the sign-in code with the identity provider.');
   }
+  // expires_in is relative to token issuance. Capture receipt time before
+  // reading/verifying the response so later JWKS latency cannot extend local expiry.
+  const tokenResponseReceivedAt = Date.now();
   let payload;
   try { payload = await response.json(); } catch { payload = null; }
   if (!response.ok || !payload || typeof payload !== 'object') {
@@ -420,7 +423,12 @@ async function exchangeAuthorizationCode({ fetchImpl = fetch, metadata, config, 
   ) {
     throw new OidcFlowError('The identity provider returned an unsupported token response.');
   }
-  return { accessToken: payload.access_token, idToken: payload.id_token, expiresIn: payload.expires_in };
+  return {
+    accessToken: payload.access_token,
+    idToken: payload.id_token,
+    expiresIn: payload.expires_in,
+    expiresAt: tokenResponseReceivedAt + payload.expires_in * 1000,
+  };
 }
 
 async function authorizeWithOidc({
@@ -460,7 +468,7 @@ async function authorizeWithOidc({
     });
     return {
       accessToken: tokens.accessToken,
-      expiresAt: Date.now() + tokens.expiresIn * 1000,
+      expiresAt: tokens.expiresAt,
       subject: identity.subject,
     };
   } finally {
