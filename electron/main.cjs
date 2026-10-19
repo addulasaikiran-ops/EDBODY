@@ -1,9 +1,10 @@
-const { app, BrowserWindow, shell, dialog, ipcMain, protocol } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, protocol } = require('electron');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 const fsSync = require('node:fs');
 const { Readable } = require('node:stream');
+const { isTrustedRendererUrl, isTrustedIpcSender } = require('./security.cjs');
 const anatomyAtlas = require('../tools/anatomy-atlas/integration.cjs');
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -20,6 +21,23 @@ function anatomyAtlasDataDir() {
   return path.join(app.getPath('userData'), 'anatomy-atlas');
 }
 
+function rendererSecurityOptions() {
+  return {
+    isDev,
+    devServerUrl: process.env.VITE_DEV_SERVER_URL,
+    rendererFilePath: path.join(__dirname, '..', 'dist', 'index.html'),
+  };
+}
+
+function registerTrustedIpcHandler(channel, handler) {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!isTrustedIpcSender(event, rendererSecurityOptions())) {
+      throw new Error('Blocked IPC request from an untrusted renderer.');
+    }
+    return handler(event, ...args);
+  });
+}
+
 function broadcastAnatomyAtlasProgress(progress) {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send('anatomy-atlas:progress', progress);
@@ -32,7 +50,15 @@ function createWindow() {
     backgroundColor: '#0a1018', title: 'EDBODY — Human Digital Twin', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
-  win.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith('https://')) shell.openExternal(url); return { action: 'deny' }; });
+  const trustedRendererOptions = rendererSecurityOptions();
+  const preventUntrustedNavigation = (event, navigationUrl) => {
+    if (!isTrustedRendererUrl(navigationUrl, trustedRendererOptions)) event.preventDefault();
+  };
+  win.webContents.on('will-navigate', preventUntrustedNavigation);
+  win.webContents.on('will-redirect', preventUntrustedNavigation);
+  // The application currently has no renderer-triggered external-link workflow.
+  // Deny popups instead of forwarding arbitrary renderer-controlled URLs to the OS.
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   if (isDev) win.loadURL(process.env.VITE_DEV_SERVER_URL); else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 }
 
@@ -94,9 +120,9 @@ async function checkTotalSegmentator() {
   });
 }
 
-ipcMain.handle('totalsegmentator:check', async () => checkTotalSegmentator());
+registerTrustedIpcHandler('totalsegmentator:check', async () => checkTotalSegmentator());
 
-ipcMain.handle('totalsegmentator:choose-input', async () => {
+registerTrustedIpcHandler('totalsegmentator:choose-input', async () => {
   const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
     title: 'Select one CT or MRI scan',
     properties: ['openFile', 'openDirectory'],
@@ -113,7 +139,7 @@ ipcMain.handle('totalsegmentator:choose-input', async () => {
   }
 });
 
-ipcMain.handle('totalsegmentator:choose-output', async () => {
+registerTrustedIpcHandler('totalsegmentator:choose-output', async () => {
   const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
     title: 'Choose a parent folder for segmentation results',
     properties: ['openDirectory', 'createDirectory']
@@ -123,14 +149,14 @@ ipcMain.handle('totalsegmentator:choose-output', async () => {
   return { cancelled: false, path: selectedOutputDirectory };
 });
 
-ipcMain.handle('totalsegmentator:cancel', async () => {
+registerTrustedIpcHandler('totalsegmentator:cancel', async () => {
   if (!activeSegmentationChild) return { cancelled: false };
   segmentationCancelRequested = true;
   try { activeSegmentationChild.kill(); } catch {}
   return { cancelled: true };
 });
 
-ipcMain.handle('totalsegmentator:run', async (event, options) => {
+registerTrustedIpcHandler('totalsegmentator:run', async (event, options) => {
   if (segmentationJobStarting || activeSegmentationChild) return { ok: false, error: 'A segmentation job is already running.' };
   if (!selectedScanPath || !selectedOutputDirectory) return { ok: false, error: 'Select a scan and output folder first.' };
   segmentationJobStarting = true;
@@ -216,9 +242,9 @@ ipcMain.handle('totalsegmentator:run', async (event, options) => {
 });
 
 
-ipcMain.handle('anatomy-atlas:status', async () => anatomyAtlas.status(anatomyAtlasDataDir()));
+registerTrustedIpcHandler('anatomy-atlas:status', async () => anatomyAtlas.status(anatomyAtlasDataDir()));
 
-ipcMain.handle('anatomy-atlas:prepare', async () => {
+registerTrustedIpcHandler('anatomy-atlas:prepare', async () => {
   if (!atlasBuildPromise) {
     atlasBuildPromise = anatomyAtlas.prepareAtlas({
       dataDir: anatomyAtlasDataDir(),
