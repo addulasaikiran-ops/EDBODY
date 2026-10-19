@@ -82,16 +82,21 @@ class Provenance(ContractModel):
     source_system: str = Field(min_length=1, max_length=128)
     source_record_reference: UUID | None = None
     source_recorded_at: AwareDatetime | None = None
-    derived_from: list[UUID] = Field(default_factory=list, max_length=100)
+    derived_from: tuple[UUID, ...] = Field(default_factory=tuple, max_length=100)
     derivation_description: str | None = Field(default=None, min_length=1, max_length=500)
 
     @model_validator(mode="after")
     def derived_observation_has_lineage(self) -> "Provenance":
-        if self.source_type == "derived" and not self.derived_from:
-            raise ValueError(
-                "derived_from must contain at least one observation reference "
-                "when source_type is 'derived'"
-            )
+        if self.source_type == "derived":
+            if not self.derived_from:
+                raise ValueError(
+                    "derived_from must contain at least one observation reference "
+                    "when source_type is 'derived'"
+                )
+            if not self.derivation_description:
+                raise ValueError(
+                    "derivation_description is required when source_type is 'derived'"
+                )
         return self
 
 
