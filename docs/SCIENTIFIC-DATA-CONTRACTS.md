@@ -13,7 +13,7 @@ from edbody_backend.schemas import ObservationV1
 - `schema_version` set explicitly to `v1`, observation and pseudonymous subject references, and a coded concept.
 - A numeric value and an explicit UCUM unit identity, or `value: null`, `unit: null`, and a structured missingness reason.
 - An observation timestamp with a UTC offset. Optional source-record timestamps must also include an offset. The schema never supplies the current time or guesses a time zone.
-- Provenance: source type/system, optional opaque source reference, and parent observation references for derived data.
+- Provenance: source type/system, optional opaque source reference, and parent observation references plus a derivation description for derived data.
 - A quality state. `flagged` and `rejected` records require a quality note.
 - Opaque consent and authorization reference UUIDs for future linkage.
 
