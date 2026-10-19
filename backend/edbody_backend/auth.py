@@ -200,7 +200,7 @@ def verify_access_token(
             principal_reference=principal_reference,
             roles=roles,
         )
-    except Exception as exc:
+    except ValidationError as exc:
         raise InvalidIdentityClaims("token identity claims are invalid") from exc
 
 
