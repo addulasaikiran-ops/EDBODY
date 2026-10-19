@@ -140,7 +140,7 @@ async function discoverProvider(config, fetchImpl = fetch) {
   }
   const authorizationEndpoint = requireHttpsEndpoint(metadata.authorization_endpoint, 'authorization endpoint');
   const tokenEndpoint = requireHttpsEndpoint(metadata.token_endpoint, 'token endpoint');
-  const jwksUri = requireHttpsEndpoint(metadata.jwks_uri, 'JWKS URI');
+  const jwksUri = requireHttpsEndpoint(metadata.jwks_uri, 'JWKS URI', { allowQuery: false });
   if (Array.isArray(metadata.response_types_supported) && !metadata.response_types_supported.includes('code')) {
     throw new OidcFlowError('The identity provider does not advertise authorization-code support.');
   }
