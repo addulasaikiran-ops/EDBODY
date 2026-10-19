@@ -4,7 +4,7 @@ EDBODY is an installable desktop research prototype built with Electron, React, 
 
 ## Run the desktop app
 
-Requirements: Node.js 22 and npm.
+Requirements: Node.js 22.12+ and npm.
 
 ```sh
 npm install

@@ -6,3 +6,12 @@ release/
 .env
 .env.*
 !.env.example
+
+# Python backend
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+backend/build/
+backend/dist/

@@ -6,7 +6,7 @@
 
 ## 1. Build and automated checks
 
-Requirements: Node.js 22 (same major version as CI) and npm.
+Requirements: Node.js 22.12+ and npm, matching the packaging toolchain's minimum.
 
 From the repository root:
 
