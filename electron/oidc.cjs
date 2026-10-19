@@ -151,6 +151,14 @@ async function discoverProvider(config, fetchImpl = fetch) {
       !metadata.code_challenge_methods_supported.includes('S256')) {
     throw new OidcFlowError('The identity provider does not support PKCE S256.');
   }
+  if (Array.isArray(metadata.token_endpoint_auth_methods_supported) &&
+      !metadata.token_endpoint_auth_methods_supported.includes('none')) {
+    throw new OidcFlowError('The identity provider does not advertise support for public-client token exchange without a client secret.');
+  }
+  if (Array.isArray(metadata.id_token_signing_alg_values_supported) &&
+      !metadata.id_token_signing_alg_values_supported.includes('RS256')) {
+    throw new OidcFlowError('The identity provider does not advertise RS256 ID-token signing, which this client requires.');
+  }
   return Object.freeze({
     ...metadata,
     authorization_endpoint: authorizationEndpoint,
