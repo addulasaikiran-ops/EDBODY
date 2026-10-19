@@ -63,6 +63,13 @@ function createWindow() {
   // CI-only smoke mode verifies the packaged renderer can load and React mounts.
   // It does not exercise native dialogs or clinical functionality.
   if (process.env.EDBODY_SMOKE_TEST === '1') {
+    win.webContents.on('console-message', (_event, details) => {
+      console.log('EDBODY_RENDERER_CONSOLE', JSON.stringify(details));
+    });
+    win.webContents.on('render-process-gone', (_event, details) => {
+      console.error('EDBODY_RENDER_PROCESS_GONE', JSON.stringify(details));
+      app.exit(1);
+    });
     win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
       if (isMainFrame) {
         console.error('EDBODY_SMOKE_TEST_FAIL: main frame failed to load', {
@@ -78,8 +85,8 @@ function createWindow() {
           "const deadline = Date.now() + 15000;",
           "const poll = () => {",
           "const root = document.getElementById('root');",
-          "if (root && root.childElementCount > 0) return resolve({ok: true, title: document.title, rootChildren: root.childElementCount});",
-          "if (Date.now() >= deadline) return resolve({ok: false, title: document.title, rootChildren: root ? root.childElementCount : 0});",
+          "if (root && root.childElementCount > 0) return resolve({ok: true, title: document.title, rootChildren: root.childElementCount, href: location.href});",
+          "if (Date.now() >= deadline) return resolve({ok: false, title: document.title, rootChildren: root ? root.childElementCount : 0, href: location.href, readyState: document.readyState, scripts: Array.from(document.scripts).map((script) => script.src), rootHtml: root ? root.innerHTML.slice(0, 500) : null});",
           "setTimeout(poll, 100);",
           "}; poll();",
           "})",
