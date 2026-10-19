@@ -24,7 +24,7 @@ from pydantic import (
 MAX_ABS_NUMERIC_VALUE = 1_000_000_000_000.0
 NumericValue = Annotated[
     FiniteFloat,
-    Field(ge=-MAX_ABS_NUMERIC_VALUE, le=MAX_ABS_NUMERIC_VALUE),
+    Field(ge=-MAX_ABS_NUMERIC_VALUE, le=MAX_ABS_NUMERIC_VALUE, strict=True),
 ]
 
 
