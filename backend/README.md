@@ -41,3 +41,14 @@ No patient data is accepted or stored. A healthy API process does **not** imply 
 `edbody_backend.schemas.ObservationV1` defines a strict, versioned schema for **numeric observations only**. It captures coded concepts, explicit units, timezone-aware timestamps, provenance, missingness, quality state, and opaque consent/authorization reference IDs. Synthetic contract fixtures and positive/negative tests live in `tests/fixtures/` and `tests/test_observation_contract.py`.
 
 The contract is deliberately **not an HTTP route**, does not persist data or verify permissions, and must not be used with real patient data. It does not convert units or fully validate UCUM unit semantics. Read [the contract specification](../docs/SCIENTIFIC-DATA-CONTRACTS.md) for its exact guarantees and limits.
+
+
+## Security and governance foundation (M3, partial)
+
+- `edbody_backend.governance` contains a pure authorization decision function and a versioned consent-grant contract. It denies access when roles, subject, consent state, action, purpose or timing do not match.
+- `edbody_backend.audit` defines an immutable audit-event contract and an interface for a future append-only sink.
+- Tests use only fabricated UUIDs and synthetic values.
+
+These modules are groundwork, **not active security enforcement**: there are no protected routes yet, no trusted identity provider, no authoritative consent store, and no durable audit sink. The `AccessPrincipal` model is not proof of identity and must never be constructed from untrusted request content in a deployed system. See [the security/privacy/governance baseline](../docs/SECURITY-PRIVACY-GOVERNANCE.md).
+
+Do not submit real patient data. Do not bind the service to a network interface or expose it beyond a developer's loopback environment.

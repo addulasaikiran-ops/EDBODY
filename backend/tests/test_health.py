@@ -25,4 +25,4 @@ def test_openapi_schema_is_available_for_contract_review() -> None:
     assert response.status_code == 200
     schema = response.json()
     assert schema["info"]["title"] == "EDBODY Research API"
-    assert "/health" in schema["paths"]
+    assert set(schema["paths"]) == {"/health"}  # No patient-data routes are exposed in this milestone.

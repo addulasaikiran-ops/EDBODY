@@ -71,7 +71,11 @@ The current FastAPI scaffold is not yet launched by Electron and is not connecte
 - Introduce PostgreSQL migrations only after the schema and access model are reviewed.
 - Keep synthetic/de-identified data in development and test workflows.
 
-**Gate:** no real patient data until institutional authorization and the security/privacy controls have been reviewed and tested.
+**Foundation implemented in this change:** first-pass threat model and data classifications; a pure role/action policy evaluator and versioned consent-grant contract; explicit fail-closed checks for missing, wrong-subject, inactive, future, expired and out-of-scope grants; immutable audit-event contract and sink interface; and tests for allow/deny paths and schema consistency. See [Security, Privacy and Governance Baseline](SECURITY-PRIVACY-GOVERNANCE.md).
+
+**Remaining before M3 acceptance:** trusted authentication/identity integration, connecting authorization to every protected API/storage path, authoritative consent persistence and revocation handling, a durable tamper-evident audit sink, encryption/key lifecycle controls, retention/deletion and backup/restore workflows, storage integration tests, and institutional security/privacy review. No patient-data endpoint or database is added in this change.
+
+**Gate:** no real patient data until institutional authorization and the security/privacy controls have been implemented, integrated, reviewed and accepted.
 
 ### M4 — Geometry-preserving imaging pipeline
 
