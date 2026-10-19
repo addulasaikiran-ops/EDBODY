@@ -105,6 +105,6 @@ test('desktop OIDC sign-in keeps bearer tokens out of the renderer bridge', asyn
   assert.match(oidcSource, /code_challenge_method', 'S256'/);
   assert.match(oidcSource, /timingSafeEqual/);
   assert.match(oidcSource, /shell|authorization endpoint/);
-  assert.match(appSource, /window\.edbodyDesktop\?\.signIn/);
+  assert.match(appSource, /api\?\.signIn/);
   assert.doesNotMatch(appSource, /localStorage|sessionStorage/);
 });
