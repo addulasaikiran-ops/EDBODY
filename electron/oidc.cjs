@@ -77,14 +77,14 @@ function readDesktopConfig(environ = process.env) {
   }
 
   const rawScope = (environ.EDBODY_OIDC_SCOPE || DEFAULT_SCOPE).trim();
-  const scopes = Array.from(new Set([...'openid'].length ? rawScope.split(/\s+/) : []));
+  const scopes = Array.from(new Set(rawScope.split(/\s+/).filter(Boolean)));
   if (!scopes.includes('openid')) scopes.unshift('openid');
   if (!scopes.length || scopes.some((scope) => !/^[A-Za-z0-9:._/-]{1,128}$/.test(scope))) {
     throw new OidcConfigurationError('EDBODY_OIDC_SCOPE contains an invalid scope token.');
   }
 
   return Object.freeze({
-    issuer: issuerUrl.toString().replace(/\/$/, ''),
+    issuer: issuerUrl.toString(),
     clientId,
     audience: audienceUrl.toString(),
     apiBaseUrl: apiUrl.origin,
@@ -192,14 +192,22 @@ function startLoopbackReceiver({ expectedState, timeoutMs = 180000, httpModule =
   const callbackPath = CALLBACK_PATH;
   let resolveResponse;
   let rejectResponse;
+  let resolveReady;
+  let rejectReady;
   let settled = false;
+  let readySettled = false;
   let timer;
   const responsePromise = new Promise((resolve, reject) => {
     resolveResponse = resolve;
     rejectResponse = reject;
   });
-  // Attach an observer immediately; caller still receives rejection when it awaits the original promise.
+  const readyPromise = new Promise((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
+  // Attach observers immediately; caller still receives rejection when awaiting either original promise.
   responsePromise.catch(() => {});
+  readyPromise.catch(() => {});
 
   const server = httpModule.createServer((request, response) => {
     const remote = request.socket.remoteAddress || '';
@@ -262,7 +270,14 @@ function startLoopbackReceiver({ expectedState, timeoutMs = 180000, httpModule =
     try { server.close(); } catch {}
     settle(value);
   }
-  server.on('error', (error) => finish(rejectResponse, new OidcFlowError('Could not start the local sign-in callback listener: ' + error.message)));
+  server.on('error', (error) => {
+    const wrapped = new OidcFlowError('Could not start the local sign-in callback listener: ' + error.message);
+    if (!readySettled) {
+      readySettled = true;
+      rejectReady(wrapped);
+    }
+    finish(rejectResponse, wrapped);
+  });
   server.listen(0, '127.0.0.1', () => {
     const address = server.address();
     if (!address || typeof address === 'string') {
@@ -272,9 +287,12 @@ function startLoopbackReceiver({ expectedState, timeoutMs = 180000, httpModule =
     addressPort = address.port;
     redirectUri = 'http://127.0.0.1:' + addressPort + callbackPath;
     timer = setTimeout(() => finish(rejectResponse, new OidcFlowError('Sign-in timed out. Return to EDBODY and try again.')), timeoutMs);
+    readySettled = true;
+    resolveReady();
   });
 
   return {
+    ready: readyPromise,
     response: responsePromise,
     close() {
       if (!settled) finish(rejectResponse, new OidcFlowError('Sign-in was cancelled.'));
@@ -344,7 +362,7 @@ async function verifyIdToken(idToken, { config, metadata, expectedNonce, fetchIm
     typeof claims.exp !== 'number' || !Number.isFinite(claims.exp) || claims.exp <= nowSeconds - CLOCK_SKEW_SECONDS ||
     typeof claims.iat !== 'number' || !Number.isFinite(claims.iat) || claims.iat > nowSeconds + CLOCK_SKEW_SECONDS ||
     !constantTimeEquals(claims.nonce, expectedNonce) ||
-    (claims.nbf !== undefined && (typeof claims.nbf !== 'number' || claims.nbf > nowSeconds + CLOCK_SKEW_SECONDS))
+    (claims.nbf !== undefined && (typeof claims.nbf !== 'number' || !Number.isFinite(claims.nbf) || claims.nbf > nowSeconds + CLOCK_SKEW_SECONDS))
   ) {
     throw new OidcFlowError('The ID token failed issuer, audience, time, subject, or nonce validation.');
   }
@@ -406,7 +424,7 @@ async function authorizeWithOidc({
 
   try {
     // Wait for listener to bind before building the exact dynamic redirect URI.
-    while (!receiver.redirectUri) await new Promise((resolve) => setTimeout(resolve, 10));
+    await receiver.ready;
     const authorizationUrl = buildAuthorizationUrl(metadata, config, {
       redirectUri: receiver.redirectUri, state, nonce, challenge: pkce.challenge,
     });
