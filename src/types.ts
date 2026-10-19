@@ -10,6 +10,7 @@ export interface DirectorySelection { cancelled: boolean; path?: string; }
 export interface SegmentationRunOptions { modality: 'ct' | 'mr'; fast: boolean; }
 export interface SegmentationRunResult { ok: boolean; cancelled?: boolean; error?: string; details?: string; outputPath?: string; outputCount?: number; modality?: 'ct' | 'mr'; fast?: boolean; }
 export interface AnatomyAtlasCounts { elements: number; concepts: number; triangles: number; vertices?: number; mirrored?: number; }
+export interface DesktopAuthStatus { configured: boolean; authenticated: boolean; roles: string[]; expiresAt: number | null; }
 export interface AnatomyAtlasStatus { ready: boolean; dataDir?: string; name?: string; version?: string; counts?: AnatomyAtlasCounts | null; attribution?: string; license?: string; licenseUrl?: string; bytes?: number; message?: string; }
 export interface AnatomyAtlasProgress { phase: string; message: string; loaded?: number; total?: number; ready?: boolean; file?: string; }
 declare global {
@@ -18,6 +19,9 @@ declare global {
       platform: string;
       version: string;
       shell: string;
+      getAuthStatus?: () => Promise<DesktopAuthStatus>;
+      signIn?: () => Promise<DesktopAuthStatus>;
+      signOut?: () => Promise<DesktopAuthStatus>;
       anatomyAtlasStatus?: () => Promise<AnatomyAtlasStatus>;
       prepareAnatomyAtlas?: () => Promise<AnatomyAtlasStatus>;
       onAnatomyAtlasProgress?: (callback: (progress: AnatomyAtlasProgress) => void) => () => void;
