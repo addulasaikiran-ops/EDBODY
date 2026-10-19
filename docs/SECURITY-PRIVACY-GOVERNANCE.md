@@ -4,7 +4,7 @@
 
 ## Current boundary
 
-As of this change, EDBODY has a hardened Electron renderer boundary, a local FastAPI health endpoint, typed synthetic observation contracts, and pure access/consent policy evaluation. The new governance rules are **not yet wired to HTTP requests**, and no identity provider, database, protected-data endpoint, encryption key service, or durable append-only audit sink has been selected or implemented.
+As of this change, EDBODY has a hardened Electron renderer boundary, a local FastAPI health endpoint, an OIDC JWT access-token verifier, a protected self-session route, typed synthetic observation contracts, and a reusable FastAPI dependency that composes role/consent checks with required audit writes. **No identity provider has been configured**, no interactive login flow exists, and the reusable protected-route dependency is not attached to any patient-data endpoint. There is no database, authoritative consent store, encryption key service, or durable append-only audit sink.
 
 **Do not put real patient data into EDBODY.** No user or institution has completed a security/privacy review through this change. Passing tests is not proof of legal, regulatory, or clinical compliance.
 
@@ -27,8 +27,8 @@ Trust boundaries in scope include the Electron renderer and preload bridge, the 
 |---|---|---|
 | Untrusted navigation or renderer content invokes privileged desktop functions | Local file access or command misuse | Existing navigation, popup, CSP and trusted IPC sender checks; continue security regression tests |
 | Another local process calls a future loopback API | Unauthorized data access | Health-only API today; require authenticated identity and per-request authorization before any protected route exists |
-| Role claims or consent fields are supplied by the requester | Privilege escalation or fabricated permission | Future trusted identity/grant adapters must load claims from verified sources; never accept principal, role or consent as caller-authored proof |
-| Stale, revoked, wrong-subject or wrong-purpose consent is accepted | Access beyond the intended grant | Added deterministic fail-closed policy evaluator; still must be wired to the protected request path and backed by an authoritative grant source |
+| Role claims or consent fields are supplied by the requester | Privilege escalation or fabricated permission | Session identity is derived from a verified configured JWT access token; future grants must be loaded from a trusted server-side repository, never caller-authored proof |
+| Stale, revoked, wrong-subject or wrong-purpose consent is accepted | Access beyond the intended grant | Added deterministic policy evaluator and reusable FastAPI dependency; a real protected route still requires an authoritative grant source and reviewed role policy |
 | Audit records can be edited or disappear | Inability to investigate access or misuse | Added immutable event contract only; durable append-only/tamper-evident sink and fail-closed integration remain unimplemented |
 | Sensitive identifiers or values leak through logs, temporary files, exports or backups | Privacy breach | Do not store real data in prototype; design minimization, redaction, retention and deletion before ingestion |
 | Database/file backup or key is stolen | Bulk disclosure | Storage and key management are not implemented; future deployment must define encryption, access separation, rotation, restore tests and key recovery |
@@ -39,9 +39,9 @@ This is an initial threat model for architecture planning, not a completed penet
 
 ## Authorization model added in this change
 
-The pure policy module `edbody_backend.governance` introduces:
+The policy module `edbody_backend.governance` introduces:
 
-- A caller identity placeholder with an explicit set of roles. This object does **not** authenticate a caller; only a future trusted identity adapter may construct it for enforcement.
+- An opaque principal reference and explicit role set. `edbody_backend.auth` now constructs this principal only after validating a configured RS256 JWT access token against its trusted JWKS, issuer, API audience, expiry and required claims. The token must use the RFC 9068 `at+jwt` type. This verifies access tokens but does not implement interactive login or configure the institution's identity provider.
 - A versioned consent-grant contract that names the subject, explicit allowed actions and purposes, effective time, optional expiry and revocation state.
 - A deterministic `evaluate_access` function. It denies when no grant exists, the subject does not match, consent is not active/effective, the grant has expired, the action or purpose is outside the grant, or the assigned role does not permit the action.
 - An aware evaluation clock; naive timestamps and epoch-number inputs for consent timestamps are rejected.
@@ -60,7 +60,7 @@ Even an otherwise permitted role requires an active, subject-matched grant expli
 
 `edbody_backend.audit.AccessAuditEvent` is an immutable schema for recording a decision: event and request IDs, actor, subject, action, purpose, allow/deny result, reason, policy version and optional resource/consent references. It rejects contradictory decision/reason combinations and requires a consent reference for an allowed access event.
 
-The event contract is **not an audit log**. No persistence sink is implemented. Before protected operations exist, implement a durable append-only sink with tamper evidence and access separation; record denies as well as allows; avoid including full observation values, credentials, raw request bodies or direct identifiers unless explicitly justified; and define how the request behaves if the audit write fails. Auditing must not be represented as successful when its event was not durably recorded.
+The event contract is **not an audit log**. A reusable route dependency now attempts to append an allow/deny event before it lets a protected handler run, and it fails closed if the sink is unavailable. No durable persistence sink is implemented. Before protected operations exist, implement a durable append-only sink with tamper evidence and access separation; record denies as well as allows; avoid including full observation values, credentials, raw request bodies or direct identifiers unless explicitly justified; and define how the request behaves if the audit write fails. Auditing must not be represented as successful when its event was not durably recorded.
 
 ## Data lifecycle requirements before persistence
 
@@ -79,8 +79,8 @@ Applicable institutional policies and laws must be determined with the responsib
 
 ## Tests and acceptance gates
 
-The new tests cover allowed and denied policy decisions, missing/inactive/revoked/future/expired grants, subject mismatch, role restrictions, action/purpose scope, timestamp handling, grant lifecycle consistency, and the audit event's required fields and immutability.
+The tests cover allowed and denied policy decisions, missing/inactive/revoked/future/expired grants, subject mismatch, role restrictions, action/purpose scope, timestamp handling, JWT signature/issuer/audience/expiry/type and claim validation, protected session behavior, FastAPI authorization dependency integration, audit-sink failure, grant lifecycle consistency, and immutable audit-event structure. The HTTP API still exposes no patient-data route.
 
-Before M3 can be considered complete, EDBODY still needs a trusted authentication integration; policy enforcement on every protected route and storage access; an authoritative consent/grant store with revocation semantics; a durable tamper-evident audit sink; secrets/key handling; retention/deletion and backup controls; integration tests against storage; a reviewed threat model; and a security/privacy acceptance review.
+Before M3 can be considered complete, EDBODY still needs a configured institutional identity provider and a safe desktop token-acquisition flow; policy enforcement on every future protected route and storage access; an authoritative consent/grant store with revocation semantics; a durable tamper-evident audit sink; secrets/key handling; retention/deletion and backup controls; integration tests against the selected identity provider and storage adapters; a reviewed threat model; and a security/privacy acceptance review.
 
 **Release gate:** no real patient data until these controls are implemented, integrated, independently reviewed and accepted for the target institutional deployment.
