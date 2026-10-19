@@ -325,3 +325,110 @@ test('native sign-in coordinates browser redirect, PKCE code exchange, and nonce
   assert.ok(result.expiresAt > Date.now());
   assert.equal(sawPkceVerifier, true);
 });
+
+
+test('end-to-end native OIDC flow uses PKCE without a client secret', async () => {
+  const config = oidc.readDesktopConfig(validEnv);
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'flow-key', use: 'sig', alg: 'RS256' };
+  const metadata = {
+    issuer: config.issuer,
+    authorization_endpoint: 'https://identity.example.test/authorize',
+    token_endpoint: 'https://identity.example.test/token',
+    jwks_uri: 'https://identity.example.test/jwks',
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code'],
+    code_challenge_methods_supported: ['S256'],
+    token_endpoint_auth_methods_supported: ['none'],
+    id_token_signing_alg_values_supported: ['RS256'],
+  };
+  let capturedAuthUrl;
+  let capturedVerifier;
+  let capturedRedirectUri;
+  const fetchImpl = async (url, options = {}) => {
+    if (url === 'https://identity.example.test/.well-known/openid-configuration') {
+      return responseJson(metadata);
+    }
+    if (url === metadata.token_endpoint) {
+      assert.equal(options.method, 'POST');
+      const tokenForm = new URLSearchParams(options.body);
+      assert.equal(tokenForm.get('grant_type'), 'authorization_code');
+      assert.equal(tokenForm.get('client_id'), config.clientId);
+      assert.equal(tokenForm.get('code'), 'authorization-code');
+      assert.equal(tokenForm.has('client_secret'), false);
+      capturedVerifier = tokenForm.get('code_verifier');
+      capturedRedirectUri = tokenForm.get('redirect_uri');
+      assert.ok(capturedVerifier);
+      assert.equal(capturedVerifier.length, 43);
+      const now = Math.floor(Date.now() / 1000);
+      const idToken = signedIdToken(privateKey, jwk, {
+        iss: config.issuer,
+        sub: 'synthetic-researcher',
+        aud: config.clientId,
+        exp: now + 300,
+        iat: now,
+        nonce: new URL(capturedAuthUrl).searchParams.get('nonce'),
+      });
+      return responseJson({
+        access_token: 'synthetic-api-access-token',
+        id_token: idToken,
+        token_type: 'Bearer',
+        expires_in: 300,
+      });
+    }
+    if (url === metadata.jwks_uri) return responseJson({ keys: [jwk] });
+    throw new Error('Unexpected URL in mocked fetch: ' + url);
+  };
+
+  const result = await oidc.authorizeWithOidc({
+    config,
+    fetchImpl,
+    timeoutMs: 5000,
+    openExternal: async (authorizationUrl) => {
+      capturedAuthUrl = authorizationUrl;
+      const auth = new URL(authorizationUrl);
+      assert.equal(auth.searchParams.get('code_challenge_method'), 'S256');
+      assert.equal(auth.searchParams.has('client_secret'), false);
+      assert.equal(auth.searchParams.get('resource'), config.audience);
+      const redirect = new URL(auth.searchParams.get('redirect_uri'));
+      await new Promise((resolve, reject) => {
+        const requestPath = redirect.pathname +
+          '?state=' + encodeURIComponent(auth.searchParams.get('state')) +
+          '&code=' + encodeURIComponent('authorization-code');
+        const request = http.get({
+          hostname: '127.0.0.1',
+          port: Number(redirect.port),
+          path: requestPath,
+          headers: { host: redirect.host },
+        }, (response) => {
+          response.resume();
+          response.on('end', () => {
+            if (response.statusCode !== 200) reject(new Error('Callback rejected: ' + response.statusCode));
+            else resolve();
+          });
+        });
+        request.on('error', reject);
+      });
+    },
+  });
+
+  assert.equal(result.accessToken, 'synthetic-api-access-token');
+  assert.equal(result.subject, 'synthetic-researcher');
+  assert.ok(result.expiresAt > Date.now());
+  assert.equal(capturedRedirectUri, new URL(capturedAuthUrl).searchParams.get('redirect_uri'));
+  assert.ok(capturedVerifier);
+});
+
+test('discovery rejects providers that require a client secret', async () => {
+  const config = oidc.readDesktopConfig(validEnv);
+  await assert.rejects(
+    oidc.discoverProvider(config, async () => responseJson({
+      issuer: config.issuer,
+      authorization_endpoint: 'https://identity.example.test/authorize',
+      token_endpoint: 'https://identity.example.test/token',
+      jwks_uri: 'https://identity.example.test/jwks',
+      token_endpoint_auth_methods_supported: ['client_secret_basic'],
+    })),
+    /without a client secret/,
+  );
+});
