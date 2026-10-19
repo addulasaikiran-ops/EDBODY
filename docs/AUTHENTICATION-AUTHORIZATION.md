@@ -15,7 +15,7 @@ Set these environment variables in the backend process environment after selecti
 
 The issuer and JWKS URL are trusted deployment configuration, not values supplied by the caller. Do not copy unverified token claims into configuration. Do not place signing private keys, client secrets, access tokens or refresh tokens in source control.
 
-The current verifier supports **RS256-signed JWT access tokens using the RFC 9068 explicit type**: `typ` must be `at+jwt` or `application/at+jwt`. It verifies the signature using the issuer's JWKS and checks the expected issuer, audience, expiration and required subject claim. The algorithm is fixed to RS256, not selected from untrusted token input. The role claim must be a list of strings; only EDBODY roles `clinician`, `researcher` and `data_steward` are mapped into permissions. Unrecognized roles are ignored, leaving the caller with no EDBODY role if no recognized role is present.
+The current verifier supports **RS256-signed JWT access tokens using the RFC 9068 profile**: `typ` must be `at+jwt` or `application/at+jwt`; the token must contain `iss`, `sub`, `aud`, `exp`, `iat`, `jti`, and `client_id`. It verifies the signature using the issuer's JWKS and checks the expected issuer, audience, expiration and required claims. The algorithm is fixed to RS256, not selected from untrusted token input. The role claim must be a list of strings; only EDBODY roles `clinician`, `researcher` and `data_steward` are mapped into permissions. Unrecognized roles are ignored, leaving the caller with no EDBODY role if no recognized role is present.
 
 This is a **resource-server verifier**, not an interactive OpenID Connect login implementation. The identity provider must issue an access token intended for EDBODY's API audience. Do not send an OIDC ID token as the API bearer token. RFC 9068 requires the explicit `at+jwt` token type partly to help prevent ID tokens from being accepted as access tokens. See the [IETF RFC 9068 specification](https://www.rfc-editor.org/rfc/rfc9068.html) and [PyJWT validation API](https://pyjwt.readthedocs.io/en/stable/api.html).
 
@@ -39,13 +39,15 @@ Failure behavior is intentional:
 Use the reusable dependency in `edbody_backend.authorization` with the route's required action and purpose, for example:
 
 ```python
+from uuid import UUID
 from fastapi import Depends
 from edbody_backend.authorization import require_authorized_action
+from edbody_backend.governance import AccessDecision
 
-@app.get("/v1/observations/{observation_reference}")
-def read_observation(
-    observation_reference: str,
-    decision=Depends(
+@app.get("/v1/subjects/{subject_reference}/observations")
+def read_observations(
+    subject_reference: UUID,
+    decision: AccessDecision = Depends(
         require_authorized_action(
             action="read_observation",
             purpose="research",
