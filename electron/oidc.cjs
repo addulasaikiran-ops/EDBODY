@@ -281,7 +281,12 @@ function startLoopbackReceiver({ expectedState, timeoutMs = 180000, httpModule =
   server.listen(0, '127.0.0.1', () => {
     const address = server.address();
     if (!address || typeof address === 'string') {
-      finish(rejectResponse, new OidcFlowError('Could not allocate a local callback port.'));
+      const error = new OidcFlowError('Could not allocate a local callback port.');
+      if (!readySettled) {
+        readySettled = true;
+        rejectReady(error);
+      }
+      finish(rejectResponse, error);
       return;
     }
     addressPort = address.port;
