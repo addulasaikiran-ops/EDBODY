@@ -1,6 +1,6 @@
 # EDBODY research backend (scaffold)
 
-This is the initial Python API foundation for EDBODY. It is deliberately limited to a health endpoint and automated tests. It is **not yet connected to Electron**, has no patient-record endpoints or persistence, and contains no physiological or clinical model.
+This is the initial Python API foundation for EDBODY. It exposes only a health endpoint. It is **not connected to Electron**, has no patient-record endpoints or persistence, and contains no physiological or clinical model.
 
 ## Run locally
 
@@ -35,3 +35,9 @@ The server binds to loopback in these instructions; do not change it to a networ
 - `GET /health`: process health and explicit capability flags only.
 
 No patient data is accepted or stored. A healthy API process does **not** imply that any scientific model is available or validated.
+
+## Typed scientific-data contract (M2)
+
+`edbody_backend.schemas.ObservationV1` defines a strict, versioned schema for **numeric observations only**. It captures coded concepts, explicit units, timezone-aware timestamps, provenance, missingness, quality state, and opaque consent/authorization reference IDs. Synthetic contract fixtures and positive/negative tests live in `tests/fixtures/` and `tests/test_observation_contract.py`.
+
+The contract is deliberately **not an HTTP route**, does not persist data or verify permissions, and must not be used with real patient data. It does not convert units or fully validate UCUM unit semantics. Read [the contract specification](../docs/SCIENTIFIC-DATA-CONTRACTS.md) for its exact guarantees and limits.
