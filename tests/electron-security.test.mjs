@@ -86,3 +86,25 @@ test('Electron window keeps its required security settings and renderer CSP', as
   assert.match(htmlSource, /default-src 'self'/);
   assert.match(htmlSource, /object-src 'none'/);
 });
+
+
+test('desktop OIDC sign-in keeps bearer tokens out of the renderer bridge', async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const mainSource = await readFile(path.join(repositoryRoot, 'electron/main.cjs'), 'utf8');
+  const preloadSource = await readFile(path.join(repositoryRoot, 'electron/preload.cjs'), 'utf8');
+  const oidcSource = await readFile(path.join(repositoryRoot, 'electron/oidc.cjs'), 'utf8');
+  const appSource = await readFile(path.join(repositoryRoot, 'src/App.tsx'), 'utf8');
+
+  assert.match(mainSource, /authSession\s*=\s*\{/);
+  assert.match(mainSource, /auth:sign-in/);
+  assert.match(mainSource, /verifyAccessTokenWithBackend\(config, result\.accessToken\)/);
+  assert.match(mainSource, /app\.on\('before-quit', \(\) => \{ authSession = null/);
+  assert.match(preloadSource, /signIn:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('auth:sign-in'\)/);
+  assert.match(preloadSource, /getAuthStatus:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('auth:status'\)/);
+  assert.doesNotMatch(preloadSource, /accessToken|refreshToken|idToken/);
+  assert.match(oidcSource, /code_challenge_method', 'S256'/);
+  assert.match(oidcSource, /timingSafeEqual/);
+  assert.match(oidcSource, /shell|authorization endpoint/);
+  assert.match(appSource, /window\.edbodyDesktop\?\.signIn/);
+  assert.doesNotMatch(appSource, /localStorage|sessionStorage/);
+});
