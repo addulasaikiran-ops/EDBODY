@@ -17,6 +17,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
+from pydantic import ValidationError
 
 from .governance import AccessPrincipal, Role
 
