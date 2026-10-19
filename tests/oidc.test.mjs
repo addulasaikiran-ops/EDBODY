@@ -355,6 +355,7 @@ test('end-to-end native OIDC flow uses PKCE without a client secret', async () =
       assert.equal(tokenForm.get('grant_type'), 'authorization_code');
       assert.equal(tokenForm.get('client_id'), config.clientId);
       assert.equal(tokenForm.get('code'), 'authorization-code');
+      assert.equal(tokenForm.get('resource'), config.audience);
       assert.equal(tokenForm.has('client_secret'), false);
       capturedVerifier = tokenForm.get('code_verifier');
       capturedRedirectUri = tokenForm.get('redirect_uri');
