@@ -83,15 +83,3 @@ For each run, note:
 ## Scope limits
 
 This is a repeatable smoke-test checklist, not yet an automated end-to-end Electron UI suite. The automated Node tests cover the illustrative demo computation only. They do not test the renderer, native dialogs, anatomy downloading, segmentation quality, clinical validity, privacy compliance, or patient outcomes.
-
-
-## 8. Electron security boundary checks (static + runtime)
-
-- [ ] Confirm the packaged renderer keeps context isolation and sandboxing enabled, and Node integration disabled.
-- [ ] Confirm the Content Security Policy allows only local app resources, the EDBODY atlas protocol and loopback Vite development traffic.
-- [ ] Confirm external navigations, redirects and renderer-created popups are denied.
-- [ ] Confirm privileged IPC calls are accepted only from the trusted top-level EDBODY renderer.
-- [ ] Run `npm test` and verify the Electron security helper tests pass.
-- [ ] Launch the app in development and from a packaged installer; verify navigation and optional atlas interactions still work.
-
-Passing helper tests does not replace a packaged-app runtime security review.

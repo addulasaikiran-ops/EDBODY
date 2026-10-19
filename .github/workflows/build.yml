@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   python-tests:
@@ -47,6 +47,16 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Bootstrap lockfile on request branch
+        if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/chore/generate-npm-lockfile'
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c chore/generated-npm-lockfile
+          git add package-lock.json
+          git commit -m "build: generate npm lockfile"
+          git push origin HEAD:refs/heads/chore/generated-npm-lockfile
       - name: Unit tests (demo behavior only)
         run: npm test
       - name: Package desktop application

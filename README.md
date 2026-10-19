@@ -14,7 +14,7 @@ npm run dev
 
 Run the TypeScript/Vite production build with `npm run build`. Package for the current operating system with `npm run dist`. Outputs are written to `release/`.
 
-The automated tests cover Electron renderer/IPC trust checks and basic software invariants of the illustrative meal-response demo. They do **not** validate a physiological model or establish clinical accuracy. Use [the baseline smoke-test checklist](docs/BASELINE-VERIFICATION.md) to check the desktop screens and optional integrations.
+The automated tests exercise only basic software invariants of the illustrative meal-response demo. They do **not** validate a physiological model or establish clinical accuracy. Use [the baseline smoke-test checklist](docs/BASELINE-VERIFICATION.md) to check the desktop screens and optional integrations.
 
 ## Scientific backend scaffold
 
