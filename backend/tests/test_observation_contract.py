@@ -135,6 +135,17 @@ def test_derived_provenance_requires_lineage() -> None:
         Provenance.model_validate(payload)
 
 
+
+def test_derived_provenance_requires_method_description() -> None:
+    payload = load_fixture("observation_v1_valid.json")["provenance"]
+    payload["source_type"] = "derived"
+    payload["derived_from"] = ["11111111-1111-4111-8111-111111111111"]
+    payload["derivation_description"] = None
+
+    with pytest.raises(ValidationError, match="derivation_description is required"):
+        Provenance.model_validate(payload)
+
+
 def test_numeric_string_is_rejected_instead_of_coerced() -> None:
     payload = load_fixture("observation_v1_valid.json")
     payload["value"] = "92.0"
