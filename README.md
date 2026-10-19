@@ -12,7 +12,7 @@ npm test
 npm run dev
 ```
 
-Run the TypeScript/Vite production build with `npm run build`. Package for the current operating system with `npm run dist`. Outputs are written to `release/`. A Linux-only headless renderer startup check is available in CI using `npm run smoke:linux` (requires `xvfb-run`).
+Run the TypeScript/Vite production build with `npm run build`. Package for the current operating system with `npm run dist`. Outputs are written to `release/`. A Linux-only headless renderer startup check is available in CI using `npm run smoke:linux` (requires `xvfb-run`). The CI command uses Chromium's `--no-sandbox` flag because the hosted runner lacks a usable Electron setuid sandbox helper; it checks window/React startup, while automated tests separately assert the app's normal `sandbox: true`, context isolation, and CSP configuration.
 
 The automated tests cover Electron renderer/IPC trust checks and basic software invariants of the illustrative meal-response demo. They do **not** validate a physiological model or establish clinical accuracy. Use [the baseline smoke-test checklist](docs/BASELINE-VERIFICATION.md) to check the desktop screens and optional integrations.
 
