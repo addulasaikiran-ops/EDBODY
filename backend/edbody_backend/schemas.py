@@ -6,6 +6,7 @@ measurement.
 """
 from __future__ import annotations
 
+import re
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -16,12 +17,29 @@ from pydantic import (
     ConfigDict,
     Field,
     FiniteFloat,
+    field_validator,
     model_validator,
 )
 
 # A serialization guard against obviously malformed magnitudes, not a
 # physiological range or a clinical decision threshold.
 MAX_ABS_NUMERIC_VALUE = 1_000_000_000_000.0
+def _require_explicit_iso_timestamp(value: object) -> object:
+    """Reject epoch numbers and timestamp strings without an explicit offset."""
+    if value is None:
+        return value
+    if (
+        not isinstance(value, str)
+        or "T" not in value
+        or re.search(r"(?:Z|[+-]\\d{2}:\\d{2})$", value) is None
+    ):
+        raise ValueError(
+            "timestamp must be an ISO 8601 string with an explicit UTC offset "
+            "(for example, '2026-01-15T09:30:00+05:30' or a trailing 'Z')"
+        )
+    return value
+
+
 NumericValue = Annotated[
     FiniteFloat,
     Field(ge=-MAX_ABS_NUMERIC_VALUE, le=MAX_ABS_NUMERIC_VALUE, strict=True),
@@ -85,6 +103,11 @@ class Provenance(ContractModel):
     derived_from: tuple[UUID, ...] = Field(default_factory=tuple, max_length=100)
     derivation_description: str | None = Field(default=None, min_length=1, max_length=500)
 
+    @field_validator("source_recorded_at", mode="before")
+    @classmethod
+    def source_timestamp_requires_explicit_offset(cls, value: object) -> object:
+        return _require_explicit_iso_timestamp(value)
+
     @model_validator(mode="after")
     def derived_observation_has_lineage(self) -> "Provenance":
         if self.source_type == "derived":
@@ -128,6 +151,11 @@ class ObservationV1(ContractModel):
     quality_status: Literal["accepted", "flagged", "rejected"]
     quality_note: str | None = Field(default=None, min_length=1, max_length=500)
     governance: GovernanceReferences
+
+    @field_validator("observed_at", mode="before")
+    @classmethod
+    def observation_timestamp_requires_explicit_offset(cls, value: object) -> object:
+        return _require_explicit_iso_timestamp(value)
 
     @model_validator(mode="after")
     def value_unit_and_missingness_are_consistent(self) -> "ObservationV1":
