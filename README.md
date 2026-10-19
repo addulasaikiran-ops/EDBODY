@@ -2,7 +2,7 @@
 
 EDBODY is an installable desktop research prototype built with Electron, React, TypeScript and Three.js. It includes a selectable 3D schematic human, local demo health profile, meal-response experiment screen and model registry.
 
-## Run
+## Run the desktop app
 
 Requirements: Node.js 22 and npm.
 
@@ -15,6 +15,12 @@ npm run dev
 Run the TypeScript/Vite production build with `npm run build`. Package for the current operating system with `npm run dist`. Outputs are written to `release/`.
 
 The automated tests exercise only basic software invariants of the illustrative meal-response demo. They do **not** validate a physiological model or establish clinical accuracy. Use [the baseline smoke-test checklist](docs/BASELINE-VERIFICATION.md) to check the desktop screens and optional integrations.
+
+## Scientific backend scaffold
+
+The project now includes an early Python/FastAPI API foundation. It is **not yet connected to the Electron app**, does not accept or store patient data, and provides no physiological predictions.
+
+See [the backend README](backend/README.md) to run its local health endpoint and tests. See the [technical roadmap](docs/TECHNICAL-ROADMAP.md) for the adopted stack and implementation gates.
 
 ## Safety and current limitations
 
