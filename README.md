@@ -20,7 +20,7 @@ The automated tests cover Electron renderer/IPC trust checks and basic software 
 
 The project now includes an early Python/FastAPI API foundation. It is **not yet connected to the Electron app**, does not accept or store patient data, and provides no physiological predictions.
 
-See [the backend README](backend/README.md) to run its local health endpoint and tests. See the [technical roadmap](docs/TECHNICAL-ROADMAP.md) for the adopted stack and implementation gates.
+See [the backend README](backend/README.md) to run its local health endpoint and tests. The [typed scientific-data contract](docs/SCIENTIFIC-DATA-CONTRACTS.md) and [security/privacy/governance baseline](docs/SECURITY-PRIVACY-GOVERNANCE.md) define tested data and access-policy primitives, but neither is wired to HTTP routes or storage. The backend has no authentication provider, patient-data endpoint, database or durable audit log. **Do not enter real patient data.** See the [technical roadmap](docs/TECHNICAL-ROADMAP.md) for the adopted stack and implementation gates.
 
 ## Safety and current limitations
 
