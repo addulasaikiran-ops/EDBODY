@@ -11,7 +11,7 @@ Requirements: Node.js 22.12+ and npm, matching the packaging toolchain's minimum
 From the repository root:
 
 ```sh
-npm install
+npm ci
 npm test
 npm run build
 ```
@@ -95,3 +95,10 @@ This is a repeatable smoke-test checklist, not yet an automated end-to-end Elect
 - [ ] Launch the app in development and from a packaged installer; verify navigation and optional atlas interactions still work.
 
 Passing helper tests does not replace a packaged-app runtime security review.
+
+
+## 9. Automated renderer startup check
+
+CI runs `npm run smoke:linux` after building the renderer. This launches Electron under a virtual X server and checks that the EDBODY window loads the application document and React mounts content into the root element.
+
+This is a headless startup check. It does not replace manual testing of native file dialogs, atlas downloads, segmentation workflows, visual rendering across GPU drivers, or installer installation/uninstallation. Those checks still need a supported desktop environment.
