@@ -60,7 +60,9 @@ The current FastAPI scaffold is not yet launched by Electron and is not connecte
 - Add synthetic fixtures and validation tests for missing, malformed, ambiguous and out-of-range inputs.
 - Record data provenance rather than silently guessing units or dates.
 
-**Acceptance:** schema tests cover valid and rejected cases, and errors explain what needs fixing without inventing values.
+**Implementation in this change:** `ObservationV1` is a strict, local-only contract for numeric observations, with synthetic examples for a measured value and explicit missingness. Validation covers timezone-aware timestamps, required units, non-finite and out-of-envelope numeric values, quality notes, schema versioning, unknown fields and provenance lineage. See [Scientific Data Contracts](SCIENTIFIC-DATA-CONTRACTS.md).
+
+**Boundary:** the schema is not exposed as an HTTP endpoint, is not connected to Electron or storage, and does not verify that referenced consent or authorization records exist or are valid. The numeric envelope is a serialization guard, not a physiological limit.
 
 ### M3 — Security and governed persistence
 

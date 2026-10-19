@@ -1,0 +1,31 @@
+{
+  "schema_version": "v1",
+  "observation_reference": "11111111-1111-4111-8111-111111111111",
+  "subject_reference": "22222222-2222-4222-8222-222222222222",
+  "code": {
+    "system": "http://loinc.org",
+    "code": "2339-0",
+    "display": "Glucose [Mass/volume] in Blood"
+  },
+  "value": 92.0,
+  "unit": {
+    "system": "http://unitsofmeasure.org",
+    "code": "mg/dL",
+    "display": "milligram per deciliter"
+  },
+  "missingness": null,
+  "observed_at": "2026-01-15T09:30:00+05:30",
+  "provenance": {
+    "source_type": "laboratory",
+    "source_system": "synthetic-lab-fixture",
+    "source_record_reference": "33333333-3333-4333-8333-333333333333",
+    "source_recorded_at": "2026-01-15T10:00:00+05:30",
+    "derived_from": []
+  },
+  "quality_status": "accepted",
+  "quality_note": null,
+  "governance": {
+    "consent_reference": "44444444-4444-4444-8444-444444444444",
+    "authorization_reference": "55555555-5555-4555-8555-555555555555"
+  }
+}
