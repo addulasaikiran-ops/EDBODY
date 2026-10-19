@@ -46,6 +46,27 @@ def test_naive_observation_timestamp_is_rejected() -> None:
         ObservationV1.model_validate(payload)
 
 
+
+@pytest.mark.parametrize(
+    "timestamp",
+    [1_768_469_400, "2026-01-15 09:30:00+05:30"],
+)
+def test_non_iso_or_epoch_timestamp_is_rejected(timestamp: object) -> None:
+    payload = load_fixture("observation_v1_valid.json")
+    payload["observed_at"] = timestamp
+
+    with pytest.raises(ValidationError, match="ISO 8601 string with an explicit UTC offset"):
+        ObservationV1.model_validate(payload)
+
+
+def test_source_timestamp_must_also_have_explicit_offset() -> None:
+    payload = load_fixture("observation_v1_valid.json")
+    payload["provenance"]["source_recorded_at"] = "2026-01-15T10:00:00"
+
+    with pytest.raises(ValidationError, match="explicit UTC offset"):
+        ObservationV1.model_validate(payload)
+
+
 def test_missing_numeric_unit_is_rejected_instead_of_guessed() -> None:
     payload = load_fixture("observation_v1_valid.json")
     payload["unit"] = None
