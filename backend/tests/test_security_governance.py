@@ -135,7 +135,7 @@ def test_expired_consent_is_denied_at_expiry_boundary() -> None:
 
 
 def test_action_outside_consent_scope_is_denied() -> None:
-    result = decide(action="write_observation")
+    result = decide(who=principal("clinician"), action="write_observation")
 
     assert result.allowed is False
     assert result.reason == "action_not_granted"
