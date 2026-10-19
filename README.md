@@ -20,7 +20,7 @@ The automated tests cover Electron renderer/IPC trust checks and basic software 
 
 The project now includes an early Python/FastAPI API foundation. It is **not yet connected to the Electron app**, does not accept or store patient data, and provides no physiological predictions.
 
-See [the backend README](backend/README.md) to run its health endpoint and tests. The backend now has a configurable OIDC JWT access-token verifier and a protected `/v1/security/session` route; no identity provider has been configured and no interactive login flow is included. The [typed scientific-data contract](docs/SCIENTIFIC-DATA-CONTRACTS.md), [authentication/authorization guide](docs/AUTHENTICATION-AUTHORIZATION.md), and [security/privacy/governance baseline](docs/SECURITY-PRIVACY-GOVERNANCE.md) describe tested policy foundations. There are still no patient-data routes, database, authoritative consent store or durable audit log. **Do not enter real patient data.**
+See [the backend README](backend/README.md) to run its health endpoint and tests. The backend has a configurable OIDC JWT access-token verifier and protected `/v1/security/session` route; the Electron desktop now includes a system-browser Authorization Code + PKCE sign-in flow configurable through environment variables. No real identity provider has been configured. See [Desktop Authentication](docs/DESKTOP-AUTHENTICATION.md), [Authentication/Authorization](docs/AUTHENTICATION-AUTHORIZATION.md), and the [Security/Privacy/Governance baseline](docs/SECURITY-PRIVACY-GOVERNANCE.md). There are still no patient-data routes, database, authoritative consent store or durable audit log. **Do not enter real patient data.**
 
 ## Safety and current limitations
 
