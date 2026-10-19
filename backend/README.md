@@ -50,7 +50,7 @@ The contract is deliberately **not an HTTP route**, does not persist data or ver
 - `edbody_backend.audit` defines an immutable audit-event contract and an interface for a future append-only sink.
 - Tests use only fabricated UUIDs and synthetic values.
 
-These modules are groundwork, **not active security enforcement**: there are no protected routes yet, no trusted identity provider, no authoritative consent store, and no durable audit sink. The `AccessPrincipal` model is not proof of identity and must never be constructed from untrusted request content in a deployed system. See [the security/privacy/governance baseline](../docs/SECURITY-PRIVACY-GOVERNANCE.md).
+The OIDC verifier and `/v1/security/session` route are active only when configured with a trusted provider. There are **no protected patient-data routes**, no configured identity provider, no authoritative consent store, and no durable audit sink. The reusable authorization dependency is tested with synthetic adapters but is not attached to a production data route. `AccessPrincipal` must only be constructed from the verified identity dependency or another trusted internal adapter, never from untrusted request content. See [authentication/authorization](../docs/AUTHENTICATION-AUTHORIZATION.md) and the [security/privacy/governance baseline](../docs/SECURITY-PRIVACY-GOVERNANCE.md).
 
 Do not submit real patient data. Do not bind the service to a network interface or expose it beyond a developer's loopback environment.
 
