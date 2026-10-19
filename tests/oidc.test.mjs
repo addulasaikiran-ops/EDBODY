@@ -38,9 +38,9 @@ test('desktop OIDC config requires explicit trusted provider and API values', ()
   );
 
   const config = oidc.readDesktopConfig(validEnv);
-  assert.equal(config.issuer, 'https://identity.example.test/');
+  assert.equal(config.issuer, 'https://identity.example.test');
   assert.equal(config.clientId, 'edbody-public-desktop');
-  assert.equal(config.audience, 'https://edbody-api.example.test/');
+  assert.equal(config.audience, 'https://edbody-api.example.test');
   assert.equal(config.apiBaseUrl, 'http://127.0.0.1:8765');
   assert.equal(config.scope, 'openid profile');
 });
