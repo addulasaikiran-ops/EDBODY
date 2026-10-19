@@ -10,7 +10,7 @@ from edbody_backend.schemas import ObservationV1
 
 `ObservationV1` represents one numeric observation and includes:
 
-- `schema_version` set explicitly to `v1`, observation and pseudonymous subject references, and a coded concept.
+- `schema_version` set explicitly to `v1`, observation and opaque subject references, and a coded concept.
 - A numeric value and an explicit UCUM unit identity, or `value: null`, `unit: null`, and a structured missingness reason.
 - An observation timestamp with a UTC offset. Optional source-record timestamps must also include an offset. The schema never supplies the current time or guesses a time zone.
 - Provenance: source type/system, optional opaque source reference, and parent observation references plus a derivation description for derived data.
