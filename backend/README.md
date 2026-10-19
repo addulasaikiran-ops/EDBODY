@@ -1,6 +1,6 @@
 # EDBODY research backend (scaffold)
 
-This is the initial Python API foundation for EDBODY. It exposes only a health endpoint. It is **not connected to Electron**, has no patient-record endpoints or persistence, and contains no physiological or clinical model.
+This is the initial Python API foundation for EDBODY. It exposes a health endpoint and a protected OIDC session-introspection route. It is **not connected to Electron**, has no patient-record endpoints or persistence, and contains no physiological or clinical model.
 
 ## Run locally
 
@@ -32,7 +32,8 @@ The server binds to loopback in these instructions; do not change it to a networ
 
 ## Current routes
 
-- `GET /health`: process health and explicit capability flags only.
+- `GET /health`: public process health and capability flags only.
+- `GET /v1/security/session`: requires a valid, configured JWT access token and returns the caller's recognized EDBODY role names only.
 
 No patient data is accepted or stored. A healthy API process does **not** imply that any scientific model is available or validated.
 
@@ -49,6 +50,19 @@ The contract is deliberately **not an HTTP route**, does not persist data or ver
 - `edbody_backend.audit` defines an immutable audit-event contract and an interface for a future append-only sink.
 - Tests use only fabricated UUIDs and synthetic values.
 
-These modules are groundwork, **not active security enforcement**: there are no protected routes yet, no trusted identity provider, no authoritative consent store, and no durable audit sink. The `AccessPrincipal` model is not proof of identity and must never be constructed from untrusted request content in a deployed system. See [the security/privacy/governance baseline](../docs/SECURITY-PRIVACY-GOVERNANCE.md).
+The OIDC verifier and `/v1/security/session` route are active only when configured with a trusted provider. There are **no protected patient-data routes**, no configured identity provider, no authoritative consent store, and no durable audit sink. The reusable authorization dependency is tested with synthetic adapters but is not attached to a production data route. `AccessPrincipal` must only be constructed from the verified identity dependency or another trusted internal adapter, never from untrusted request content. See [authentication/authorization](../docs/AUTHENTICATION-AUTHORIZATION.md) and the [security/privacy/governance baseline](../docs/SECURITY-PRIVACY-GOVERNANCE.md).
 
 Do not submit real patient data. Do not bind the service to a network interface or expose it beyond a developer's loopback environment.
+
+
+## OIDC authentication (M3, partial)
+
+Configure the backend process environment with `EDBODY_OIDC_ISSUER`, `EDBODY_OIDC_AUDIENCE`, and `EDBODY_OIDC_JWKS_URL`. Optionally set `EDBODY_OIDC_ROLE_CLAIM` if the trusted provider uses a different top-level claim than `roles`. Issuer and JWKS URLs must be HTTPS; the verifier accepts RS256 JWT access tokens with `typ=at+jwt` or `application/at+jwt`, and validates signature, issuer, audience, expiry and required RFC 9068 claims.
+
+The backend does not perform interactive sign-in or configure an institutional provider for you. See [Authentication and Authorization](../docs/AUTHENTICATION-AUTHORIZATION.md) for setup assumptions and failure behavior. Without OIDC configuration, requests to the session endpoint fail closed with HTTP 503. Missing/invalid bearer tokens return HTTP 401.
+
+## FastAPI authorization dependency
+
+`edbody_backend.authorization.require_authorized_action(...)` is a reusable dependency for future protected routes. It obtains identity from the verified token, loads consent through a server-side repository interface, evaluates role/subject/action/purpose and writes an allow/deny event to an audit sink before an allowed handler runs.
+
+The default consent-repository and audit-sink providers deliberately return HTTP 503. There is no concrete consent store or durable audit sink yet. Unit tests override these dependencies using synthetic data; this is not a production storage implementation. Until trusted repository and audit implementations are reviewed and wired in, do not add a route that returns real health information and do not submit real patient data.

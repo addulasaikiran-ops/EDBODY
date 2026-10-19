@@ -24,7 +24,7 @@ NOW = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
 
 def principal(*roles: str) -> AccessPrincipal:
     return AccessPrincipal(
-        principal_reference=ACTOR,
+        principal_reference=str(ACTOR),
         roles=list(roles),
     )
 

@@ -22,7 +22,7 @@ class AccessAuditEvent(ContractModel):
     event_reference: UUID
     occurred_at: AwareDatetime
     request_reference: UUID
-    actor_reference: UUID
+    actor_reference: str = Field(min_length=1, max_length=512)
     subject_reference: UUID
     action: ProtectedAction
     purpose: DataPurpose
