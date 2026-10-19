@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from urllib.parse import urlparse
-
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -58,6 +56,8 @@ def issue_token(
         "sub": subject,
         "roles": ["researcher"] if roles is None else roles,
         "iat": int(now.timestamp()),
+        "jti": "synthetic-token-id",
+        "client_id": "edbody-test-client",
     }
     if include_expiry:
         claims["exp"] = int((expires_at or now + timedelta(minutes=5)).timestamp())
