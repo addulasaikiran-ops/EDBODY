@@ -1,5 +1,4 @@
 import json
-from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -136,9 +135,9 @@ def test_derived_provenance_requires_lineage() -> None:
         Provenance.model_validate(payload)
 
 
-def test_fixture_does_not_change_when_a_test_modifies_a_copy() -> None:
-    original = load_fixture("observation_v1_valid.json")
-    modified = deepcopy(original)
-    modified["unit"]["code"] = "kg"
+def test_numeric_string_is_rejected_instead_of_coerced() -> None:
+    payload = load_fixture("observation_v1_valid.json")
+    payload["value"] = "92.0"
 
-    assert load_fixture("observation_v1_valid.json")["unit"]["code"] == "mg/dL"
+    with pytest.raises(ValidationError):
+        ObservationV1.model_validate(payload)
