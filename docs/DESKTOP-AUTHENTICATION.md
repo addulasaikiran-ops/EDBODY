@@ -34,9 +34,9 @@ For **local development only**, the API base URL may use loopback HTTP, such as 
 PowerShell example (replace placeholders with the values from your trusted provider and API deployment):
 
 ```powershell
-$env:EDBODY_OIDC_ISSUER = "https://identity.example.test"
+$env:EDBODY_OIDC_ISSUER = "https://identity.example.test/"
 $env:EDBODY_OIDC_CLIENT_ID = "your-public-desktop-client-id"
-$env:EDBODY_OIDC_AUDIENCE = "https://edbody-api.example.test"
+$env:EDBODY_OIDC_AUDIENCE = "https://edbody-api.example.test/"
 $env:EDBODY_API_BASE_URL = "http://127.0.0.1:8765"
 npm run dev
 ```
