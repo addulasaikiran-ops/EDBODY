@@ -24,6 +24,8 @@ from pydantic import (
 # A serialization guard against obviously malformed magnitudes, not a
 # physiological range or a clinical decision threshold.
 MAX_ABS_NUMERIC_VALUE = 1_000_000_000_000.0
+
+
 def _require_explicit_iso_timestamp(value: object) -> object:
     """Reject epoch numbers and timestamp strings without an explicit offset."""
     if value is None:
@@ -31,7 +33,7 @@ def _require_explicit_iso_timestamp(value: object) -> object:
     if (
         not isinstance(value, str)
         or "T" not in value
-        or re.search(r"(?:Z|[+-]\\d{2}:\\d{2})$", value) is None
+        or re.search(r"(?:Z|[+-][0-9]{2}:[0-9]{2})$", value) is None
     ):
         raise ValueError(
             "timestamp must be an ISO 8601 string with an explicit UTC offset "
