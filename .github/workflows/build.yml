@@ -25,6 +25,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Unit tests (demo behavior only)
+        run: npm test
       - name: Package desktop application
         run: npm run dist
       - name: Upload installer artifacts
