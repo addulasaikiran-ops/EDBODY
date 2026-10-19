@@ -45,10 +45,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
-        run: npm install
-      - name: Unit tests (demo behavior only)
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies from lockfile
+        run: npm ci
+      - name: Unit tests
         run: npm test
+      - name: Build renderer
+        run: npm run build
+      - name: Linux desktop startup smoke test
+        if: runner.os == 'Linux'
+        run: npm run smoke:linux
       - name: Package desktop application
         run: npm run dist
       - name: Upload installer artifacts

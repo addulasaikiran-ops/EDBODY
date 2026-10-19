@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import security from '../electron/security.cjs';
 
@@ -71,4 +72,17 @@ test('IPC trust requires the trusted top-level frame', () => {
     false,
   );
   assert.equal(security.isTrustedIpcSender({}, productionOptions), false);
+});
+
+test('Electron window keeps its required security settings and renderer CSP', async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const mainSource = await readFile(path.join(repositoryRoot, 'electron/main.cjs'), 'utf8');
+  const htmlSource = await readFile(path.join(repositoryRoot, 'index.html'), 'utf8');
+
+  assert.match(mainSource, /contextIsolation:\s*true/);
+  assert.match(mainSource, /nodeIntegration:\s*false/);
+  assert.match(mainSource, /sandbox:\s*true/);
+  assert.match(htmlSource, /Content-Security-Policy/);
+  assert.match(htmlSource, /default-src 'self'/);
+  assert.match(htmlSource, /object-src 'none'/);
 });

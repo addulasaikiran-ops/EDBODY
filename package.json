@@ -16,7 +16,8 @@
     "dist": "npm run build && electron-builder --publish never",
     "dist:win": "npm run build && electron-builder --publish never --win",
     "dist:mac": "npm run build && electron-builder --publish never --mac",
-    "dist:linux": "npm run build && electron-builder --publish never --linux"
+    "dist:linux": "npm run build && electron-builder --publish never --linux",
+    "smoke:linux": "xvfb-run -a env EDBODY_SMOKE_TEST=1 electron --no-sandbox --use-gl=angle --use-angle=swiftshader-webgl --enable-unsafe-swiftshader ."
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

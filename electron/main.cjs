@@ -59,6 +59,53 @@ function createWindow() {
   // The application currently has no renderer-triggered external-link workflow.
   // Deny popups instead of forwarding arbitrary renderer-controlled URLs to the OS.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
+  // CI-only smoke mode verifies the packaged renderer can load and React mounts.
+  // It does not exercise native dialogs or clinical functionality.
+  if (process.env.EDBODY_SMOKE_TEST === '1') {
+    win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+      console.log('EDBODY_RENDERER_CONSOLE', JSON.stringify({ level, message, line, sourceId }));
+    });
+    win.webContents.on('render-process-gone', (_event, details) => {
+      console.error('EDBODY_RENDER_PROCESS_GONE', JSON.stringify(details));
+      app.exit(1);
+    });
+    win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (isMainFrame) {
+        console.error('EDBODY_SMOKE_TEST_FAIL: main frame failed to load', {
+          errorCode, errorDescription, validatedURL,
+        });
+        app.exit(1);
+      }
+    });
+    win.webContents.once('did-finish-load', async () => {
+      try {
+        const smokeScript = [
+          "new Promise((resolve) => {",
+          "const deadline = Date.now() + 15000;",
+          "const poll = () => {",
+          "const root = document.getElementById('root');",
+          "if (root && root.childElementCount > 0) return resolve({ok: true, title: document.title, rootChildren: root.childElementCount, href: location.href});",
+          "if (Date.now() >= deadline) return resolve({ok: false, title: document.title, rootChildren: root ? root.childElementCount : 0, href: location.href, readyState: document.readyState, scripts: Array.from(document.scripts).map((script) => script.src), rootHtml: root ? root.innerHTML.slice(0, 500) : null});",
+          "setTimeout(poll, 100);",
+          "}; poll();",
+          "})",
+        ].join('');
+        const result = await win.webContents.executeJavaScript(smokeScript);
+        if (!result.ok || result.title !== 'EDBODY — Human Digital Twin') {
+          console.error('EDBODY_SMOKE_TEST_FAIL: renderer did not mount as expected', result);
+          app.exit(1);
+          return;
+        }
+        console.log('EDBODY_SMOKE_TEST_PASS', JSON.stringify(result));
+        app.exit(0);
+      } catch (error) {
+        console.error('EDBODY_SMOKE_TEST_FAIL:', error);
+        app.exit(1);
+      }
+    });
+  }
+
   if (isDev) win.loadURL(process.env.VITE_DEV_SERVER_URL); else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 }
 
