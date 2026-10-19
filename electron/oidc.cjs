@@ -389,6 +389,7 @@ async function exchangeAuthorizationCode({ fetchImpl = fetch, metadata, config, 
     code,
     redirect_uri: redirectUri,
     code_verifier: verifier,
+    resource: config.audience,
   });
   let response;
   try {
