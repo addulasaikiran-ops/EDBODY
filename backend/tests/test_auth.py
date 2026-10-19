@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from uuid import uuid4
+
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -48,6 +50,7 @@ def issue_token(
     expires_at: datetime | None = None,
     include_expiry: bool = True,
     token_type: str = "at+jwt",
+    omit_claim: str | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     claims: dict[str, object] = {
@@ -56,11 +59,13 @@ def issue_token(
         "sub": subject,
         "roles": ["researcher"] if roles is None else roles,
         "iat": int(now.timestamp()),
-        "jti": "synthetic-token-id",
+        "jti": str(uuid4()),
         "client_id": "edbody-test-client",
     }
     if include_expiry:
         claims["exp"] = int((expires_at or now + timedelta(minutes=5)).timestamp())
+    if omit_claim is not None:
+        claims.pop(omit_claim, None)
     return jwt.encode(
         claims,
         private_key,
@@ -207,3 +212,19 @@ def test_oidc_configuration_rejects_empty_or_invalid_role_claim_name() -> None:
 
     with pytest.raises(OIDCConfigurationError, match="top-level claim name"):
         OIDCSettings.from_environment(config)
+
+
+
+@pytest.mark.parametrize("claim", ["iat", "jti", "client_id"])
+def test_required_access_token_profile_claims_cannot_be_omitted(
+    claim: str,
+    signing_keys: tuple[object, object],
+    settings: OIDCSettings,
+) -> None:
+    private_key, public_key = signing_keys
+    token = issue_token(private_key, omit_claim=claim)
+
+    with pytest.raises(InvalidBearerToken):
+        verify_access_token(
+            token, settings, jwks_client=StaticJwksClient(public_key)  # type: ignore[arg-type]
+        )
