@@ -234,3 +234,94 @@ test('loopback receiver ignores bad state and accepts only the matching callback
     receiver.close();
   }
 });
+
+
+test('native sign-in coordinates browser redirect, PKCE code exchange, and nonce validation', async () => {
+  const config = oidc.readDesktopConfig(validEnv);
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const now = Math.floor(Date.now() / 1000);
+  const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'integrated-id-token-key', use: 'sig', alg: 'RS256' };
+  const metadata = {
+    issuer: config.issuer,
+    authorization_endpoint: 'https://identity.example.test/authorize',
+    token_endpoint: 'https://identity.example.test/token',
+    jwks_uri: 'https://identity.example.test/jwks',
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code'],
+    code_challenge_methods_supported: ['S256'],
+  };
+  let expectedNonce = '';
+  let redirectUri = '';
+  let sawPkceVerifier = false;
+
+  const fetchImpl = async (url, options = {}) => {
+    if (url === oidc.discoveryUrl(config.issuer)) return responseJson(metadata);
+    if (url === metadata.jwks_uri) return responseJson({ keys: [jwk] });
+    if (url === metadata.token_endpoint) {
+      assert.equal(options.method, 'POST');
+      assert.equal(options.redirect, 'error');
+      const form = options.body;
+      assert.equal(form.get('grant_type'), 'authorization_code');
+      assert.equal(form.get('client_id'), config.clientId);
+      assert.equal(form.get('redirect_uri'), redirectUri);
+      const verifier = form.get('code_verifier');
+      assert.match(verifier, /^[A-Za-z0-9_-]{43}$/);
+      sawPkceVerifier = true;
+      return responseJson({
+        access_token: 'synthetic-access-token-not-for-production',
+        token_type: 'Bearer',
+        expires_in: 600,
+        id_token: signedIdToken(privateKey, jwk, {
+          iss: config.issuer,
+          sub: 'synthetic-login-subject',
+          aud: config.clientId,
+          exp: now + 300,
+          iat: now - 1,
+          nonce: expectedNonce,
+        }),
+      });
+    }
+    throw new Error('Unexpected mocked URL: ' + url);
+  };
+
+  const openExternal = async (authorizationUrl) => {
+    const url = new URL(authorizationUrl);
+    assert.equal(url.origin + url.pathname, metadata.authorization_endpoint);
+    assert.equal(url.searchParams.get('response_type'), 'code');
+    assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+    assert.equal(url.searchParams.get('resource'), config.audience);
+    assert.ok(url.searchParams.get('code_challenge'));
+    expectedNonce = url.searchParams.get('nonce');
+    const state = url.searchParams.get('state');
+    redirectUri = url.searchParams.get('redirect_uri');
+    const callback = new URL(redirectUri);
+    await new Promise((resolve, reject) => {
+      const req = http.get({
+        hostname: callback.hostname,
+        port: Number(callback.port),
+        path: callback.pathname + '?state=' + encodeURIComponent(state) + '&code=synthetic-authorization-code',
+        headers: { host: callback.host },
+      }, (response) => {
+        response.resume();
+        response.on('end', () => {
+          if (response.statusCode === 200) resolve();
+          else reject(new Error('Callback was rejected.'));
+        });
+      });
+      req.on('error', reject);
+    });
+  };
+
+  const result = await oidc.authorizeWithOidc({
+    config,
+    openExternal,
+    fetchImpl,
+    timeoutMs: 5000,
+    nowSeconds: now,
+  });
+
+  assert.equal(result.accessToken, 'synthetic-access-token-not-for-production');
+  assert.equal(result.subject, 'synthetic-login-subject');
+  assert.ok(result.expiresAt > Date.now());
+  assert.equal(sawPkceVerifier, true);
+});
