@@ -26,7 +26,7 @@ Trust boundaries in scope include the Electron renderer and preload bridge, the 
 | Threat | Impact | Existing or required control |
 |---|---|---|
 | Untrusted navigation or renderer content invokes privileged desktop functions | Local file access or command misuse | Existing navigation, popup, CSP and trusted IPC sender checks; continue security regression tests |
-| Another local process calls a future loopback API | Unauthorized data access | Health-only API today; require authenticated identity and per-request authorization before any protected route exists |
+| Another local process calls the loopback API | Unauthorized data access | `/health` is public; `/v1/security/session` requires a configured, verified access token; no patient-data route exists yet. Every future protected route must enforce per-request authorization |
 | Role claims or consent fields are supplied by the requester | Privilege escalation or fabricated permission | Session identity is derived from a verified configured JWT access token; future grants must be loaded from a trusted server-side repository, never caller-authored proof |
 | Stale, revoked, wrong-subject or wrong-purpose consent is accepted | Access beyond the intended grant | Added deterministic policy evaluator and reusable FastAPI dependency; a real protected route still requires an authoritative grant source and reviewed role policy |
 | Audit records can be edited or disappear | Inability to investigate access or misuse | Added immutable event contract only; durable append-only/tamper-evident sink and fail-closed integration remain unimplemented |
