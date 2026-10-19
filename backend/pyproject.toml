@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edbody-research-backend"
+version = "0.1.0"
+description = "Early research API foundation for EDBODY; not a clinical system."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "numpy>=2.1,<3.0",
+  "scipy>=1.14,<2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.27,<1.0",
+  "pytest>=8.0,<9.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["edbody_backend*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
