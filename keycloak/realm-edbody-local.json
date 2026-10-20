@@ -1,0 +1,97 @@
+{
+  "realm": "edbody-local",
+  "enabled": true,
+  "displayName": "EDBODY Local Development (Synthetic Users Only)",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "bruteForceProtected": true,
+  "clients": [
+    {
+      "clientId": "edbody-desktop",
+      "name": "EDBODY local desktop",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": ["http://127.0.0.1:*/*"],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://127.0.0.1/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "EDBODY API audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "https://edbody-api.local",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "EDBODY top-level roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "EDBODY access-token client_id claim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "client_id",
+            "claim.value": "edbody-desktop",
+            "jsonType.label": "String",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ],
+      "defaultClientScopes": ["web-origins", "acr", "profile", "email", "roles"]
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "researcher", "description": "Synthetic local EDBODY researcher role" },
+      { "name": "clinician", "description": "Synthetic local test role only; not a clinical authorization grant" },
+      { "name": "data_steward", "description": "Synthetic local test role only" }
+    ]
+  },
+  "users": [
+    {
+      "username": "researcher",
+      "enabled": true,
+      "email": "researcher@example.test",
+      "emailVerified": true,
+      "firstName": "Local",
+      "lastName": "Researcher",
+      "credentials": [
+        { "type": "password", "value": "local-researcher-only", "temporary": false }
+      ],
+      "realmRoles": ["researcher"]
+    }
+  ]
+}
