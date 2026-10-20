@@ -30,13 +30,30 @@ test('local Keycloak discovery permits HTTP endpoints only on loopback', async (
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code'],
     code_challenge_methods_supported: ['S256'],
-    token_endpoint_auth_methods_supported: ['none'],
+    token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post'],
     id_token_signing_alg_values_supported: ['RS256'],
   };
   const fetchImpl = async () => ({ ok: true, json: async () => metadata });
   const discovered = await discoverProvider(config, fetchImpl);
   assert.equal(discovered.issuer, config.issuer);
   assert.equal(discovered.token_endpoint, metadata.token_endpoint);
+
+  const secureConfig = readDesktopConfig({
+    ...localEnv,
+    EDBODY_OIDC_ISSUER: 'https://identity.example.test/realms/edbody-local',
+    EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK: 'false',
+  });
+  const secureMetadata = {
+    ...metadata,
+    issuer: secureConfig.issuer,
+    authorization_endpoint: 'https://identity.example.test/auth',
+    token_endpoint: 'https://identity.example.test/token',
+    jwks_uri: 'https://identity.example.test/certs',
+  };
+  await assert.rejects(
+    discoverProvider(secureConfig, async () => ({ ok: true, json: async () => secureMetadata })),
+    OidcFlowError,
+  );
 
   const unsafeMetadata = { ...metadata, token_endpoint: 'http://identity.example.test/token' };
   await assert.rejects(
