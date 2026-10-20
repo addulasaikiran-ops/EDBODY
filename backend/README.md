@@ -1,6 +1,6 @@
 # EDBODY research backend (scaffold)
 
-This is the initial Python API foundation for EDBODY. It exposes a health endpoint and a protected OIDC session-introspection route. It is **not connected to Electron**, has no patient-record endpoints or persistence, and contains no physiological or clinical model.
+This is the initial Python API foundation for EDBODY. It exposes a health endpoint and a protected OIDC session-introspection route. It is **not connected to Electron**, has no patient-record endpoints, persists only encrypted consent-grant and access-audit records when explicitly configured, and contains no physiological or clinical model.
 
 ## Run locally
 
@@ -35,7 +35,7 @@ The server binds to loopback in these instructions; do not change it to a networ
 - `GET /health`: public process health and capability flags only.
 - `GET /v1/security/session`: requires a valid, configured JWT access token and returns the caller's recognized EDBODY role names only.
 
-No patient data is accepted or stored. A healthy API process does **not** imply that any scientific model is available or validated.
+No patient data is accepted or stored; only governance metadata/grants and access-decision audit payloads can be persisted when storage is configured. A healthy API process does **not** imply that any scientific model is available or validated.
 
 ## Typed scientific-data contract (M2)
 
