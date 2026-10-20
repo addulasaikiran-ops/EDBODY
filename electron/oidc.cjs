@@ -22,7 +22,11 @@ class OidcFlowError extends Error {
   }
 }
 
-function parseUrl(value, label, { httpsOnly = true, allowQuery = false, allowFragment = false } = {}) {
+function isLoopbackHost(hostname) {
+  return ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(String(hostname).toLowerCase());
+}
+
+function parseUrl(value, label, { httpsOnly = true, allowQuery = false, allowFragment = false, allowInsecureLoopback = false } = {}) {
   if (typeof value !== 'string' || !value.trim()) {
     throw new OidcConfigurationError(label + ' is required.');
   }
@@ -33,7 +37,7 @@ function parseUrl(value, label, { httpsOnly = true, allowQuery = false, allowFra
     throw new OidcConfigurationError(label + ' must be a valid absolute URL.');
   }
   if (
-    (httpsOnly && parsed.protocol !== 'https:') ||
+    (httpsOnly && parsed.protocol !== 'https:' && !(allowInsecureLoopback && parsed.protocol === 'http:' && isLoopbackHost(parsed.hostname))) ||
     !parsed.hostname ||
     parsed.username ||
     parsed.password ||
@@ -57,7 +61,8 @@ function readDesktopConfig(environ = process.env) {
     throw new OidcConfigurationError('Configure ' + missing.join(', ') + ' in the environment before launching EDBODY.');
   }
 
-  const issuerUrl = parseUrl(environ.EDBODY_OIDC_ISSUER.trim(), 'EDBODY_OIDC_ISSUER');
+  const allowInsecureLoopback = ['1', 'true'].includes(String(environ.EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK || '').trim().toLowerCase());
+  const issuerUrl = parseUrl(environ.EDBODY_OIDC_ISSUER.trim(), 'EDBODY_OIDC_ISSUER', { allowInsecureLoopback });
   const audienceUrl = parseUrl(environ.EDBODY_OIDC_AUDIENCE.trim(), 'EDBODY_OIDC_AUDIENCE');
   const apiUrl = parseUrl(environ.EDBODY_API_BASE_URL.trim(), 'EDBODY_API_BASE_URL', {
     httpsOnly: false,
@@ -92,6 +97,7 @@ function readDesktopConfig(environ = process.env) {
     audience: environ.EDBODY_OIDC_AUDIENCE.trim(),
     apiBaseUrl: apiUrl.origin,
     scope: scopes.join(' '),
+    allowInsecureLoopback,
   });
 }
 
@@ -126,10 +132,10 @@ async function fetchJson(fetchImpl, url, { timeoutMs = 10000, headers = {} } = {
   return data;
 }
 
-function requireHttpsEndpoint(value, name, { allowQuery = true } = {}) {
+function requireHttpsEndpoint(value, name, { allowQuery = true, allowInsecureLoopback = false } = {}) {
   let url;
   try {
-    url = parseUrl(value, name, { allowQuery });
+    url = parseUrl(value, name, { allowQuery, allowInsecureLoopback });
   } catch {
     throw new OidcFlowError('Identity-provider metadata contains an invalid ' + name + '.');
   }
@@ -141,9 +147,10 @@ async function discoverProvider(config, fetchImpl = fetch) {
   if (metadata.issuer !== config.issuer) {
     throw new OidcFlowError('The identity-provider issuer does not exactly match EDBODY_OIDC_ISSUER.');
   }
-  const authorizationEndpoint = requireHttpsEndpoint(metadata.authorization_endpoint, 'authorization endpoint');
-  const tokenEndpoint = requireHttpsEndpoint(metadata.token_endpoint, 'token endpoint');
-  const jwksUri = requireHttpsEndpoint(metadata.jwks_uri, 'JWKS URI', { allowQuery: false });
+  const endpointOptions = { allowInsecureLoopback: config.allowInsecureLoopback === true };
+  const authorizationEndpoint = requireHttpsEndpoint(metadata.authorization_endpoint, 'authorization endpoint', endpointOptions);
+  const tokenEndpoint = requireHttpsEndpoint(metadata.token_endpoint, 'token endpoint', endpointOptions);
+  const jwksUri = requireHttpsEndpoint(metadata.jwks_uri, 'JWKS URI', { ...endpointOptions, allowQuery: false });
   if (Array.isArray(metadata.response_types_supported) && !metadata.response_types_supported.includes('code')) {
     throw new OidcFlowError('The identity provider does not advertise authorization-code support.');
   }
