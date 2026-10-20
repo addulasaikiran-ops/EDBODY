@@ -15,4 +15,6 @@ __pycache__/
 *.egg-info/
 backend/build/
 backend/dist/
-\n# Local Keycloak bootstrap credentials\n/keycloak/env.local\n
+
+# Local Keycloak bootstrap credentials
+/keycloak/env.local
