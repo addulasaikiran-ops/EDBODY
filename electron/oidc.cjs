@@ -63,6 +63,7 @@ function readDesktopConfig(environ = process.env) {
 
   const allowInsecureLoopback = ['1', 'true'].includes(String(environ.EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK || '').trim().toLowerCase());
   const issuerUrl = parseUrl(environ.EDBODY_OIDC_ISSUER.trim(), 'EDBODY_OIDC_ISSUER', { allowInsecureLoopback });
+  const localDevelopmentMode = allowInsecureLoopback && issuerUrl.protocol === 'http:' && isLoopbackHost(issuerUrl.hostname);
   const audienceUrl = parseUrl(environ.EDBODY_OIDC_AUDIENCE.trim(), 'EDBODY_OIDC_AUDIENCE');
   const apiUrl = parseUrl(environ.EDBODY_API_BASE_URL.trim(), 'EDBODY_API_BASE_URL', {
     httpsOnly: false,
@@ -97,7 +98,7 @@ function readDesktopConfig(environ = process.env) {
     audience: environ.EDBODY_OIDC_AUDIENCE.trim(),
     apiBaseUrl: apiUrl.origin,
     scope: scopes.join(' '),
-    allowInsecureLoopback,
+    allowInsecureLoopback: localDevelopmentMode,
   });
 }
 
