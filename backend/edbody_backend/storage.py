@@ -6,10 +6,12 @@ database isolation, KMS/HSM key management, backups, or security review.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import sqlite3
 from pathlib import Path
+from contextlib import closing
 from typing import Any
 from uuid import UUID
 
@@ -65,7 +67,7 @@ class SQLiteGovernanceStore:
         return conn
 
     def _initialize(self) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.executescript(
                 """
@@ -183,7 +185,7 @@ class SQLiteGovernanceStore:
             if row["previous_hash"] != previous_hash:
                 return False
             expected = hashlib.sha256(previous_hash.encode("ascii") + b":" + row["encrypted_payload"]).hexdigest()
-            if not hashlib.compare_digest(expected, row["event_hash"]):
+            if not hmac.compare_digest(expected, row["event_hash"]):
                 return False
             previous_hash = row["event_hash"]
         return True
