@@ -1,6 +1,6 @@
 # Backend authentication and authorization (M3 foundation)
 
-**Status:** OIDC JWT access-token verification and a reusable authorization dependency are implemented and tested. EDBODY does not yet have an interactive login flow, a configured identity provider, a consent database, a durable audit sink, or a protected patient-data route.
+**Status:** OIDC JWT access-token verification, an Electron system-browser Authorization Code + PKCE flow, and a reusable authorization dependency are implemented and tested. EDBODY has not yet been configured against a real identity provider, and it has no consent database, durable audit sink, or protected patient-data route. See [Desktop Authentication](DESKTOP-AUTHENTICATION.md) for desktop-side setup.
 
 ## Configuration
 
@@ -17,7 +17,7 @@ The issuer and JWKS URL are trusted deployment configuration, not values supplie
 
 The current verifier supports **RS256-signed JWT access tokens using the RFC 9068 profile**: `typ` must be `at+jwt` or `application/at+jwt`; the token must contain `iss`, `sub`, `aud`, `exp`, `iat`, `jti`, and `client_id`. It verifies the signature using the issuer's JWKS and checks the expected issuer, audience, expiration and required claims. The algorithm is fixed to RS256, not selected from untrusted token input. The role claim must be a list of strings; only EDBODY roles `clinician`, `researcher` and `data_steward` are mapped into permissions. Unrecognized roles are ignored, leaving the caller with no EDBODY role if no recognized role is present.
 
-This is a **resource-server verifier**, not an interactive OpenID Connect login implementation. The identity provider must issue an access token intended for EDBODY's API audience. Do not send an OIDC ID token as the API bearer token. RFC 9068 requires the explicit `at+jwt` token type partly to help prevent ID tokens from being accepted as access tokens. See the [IETF RFC 9068 specification](https://www.rfc-editor.org/rfc/rfc9068.html) and [PyJWT validation API](https://pyjwt.readthedocs.io/en/stable/api.html).
+The backend token verifier is a **resource-server verifier**: it validates API access tokens, rather than performing a browser login. The separate Electron client now implements the system-browser Authorization Code + PKCE flow described in [Desktop Authentication](DESKTOP-AUTHENTICATION.md). The identity provider must issue an access token intended for EDBODY's API audience. Do not send an OIDC ID token as the API bearer token. RFC 9068 requires the explicit `at+jwt` token type partly to help prevent ID tokens from being accepted as access tokens. See the [IETF RFC 9068 specification](https://www.rfc-editor.org/rfc/rfc9068.html) and [PyJWT validation API](https://pyjwt.readthedocs.io/en/stable/api.html).
 
 ## Current HTTP routes
 
@@ -65,7 +65,7 @@ However, the default consent-repository and audit-sink dependencies deliberately
 ## What is still required
 
 1. Choose the target institution's supported identity provider and configure how its trusted access tokens represent roles. The current role mapping and role policy are prototype defaults.
-2. Decide how the Electron desktop obtains an access token safely. If it is a public desktop client, use an approved authorization-code flow with PKCE via the system browser; never embed a client secret in the desktop app. The interactive flow is not implemented here.
+2. Validate the desktop flow against the selected institution provider and exact client/API audience configuration; the native-app flow is implemented, but no provider-specific setup has been verified yet.
 3. Implement trusted consent/grant storage, including revocation and subject binding.
 4. Implement a durable append-only/tamper-evident audit sink. Protected operations fail closed if audit append fails.
 5. Wire storage-level authorization as well as route-level authorization; a route check alone is not enough if background workers or direct storage paths bypass it.

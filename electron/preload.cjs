@@ -6,6 +6,10 @@ contextBridge.exposeInMainWorld('edbodyDesktop', {
   platform: process.platform,
   version: '0.1.0',
   shell: 'electron',
+  // Authentication responses are sanitized status only; bearer tokens remain in main-process memory.
+  getAuthStatus: () => ipcRenderer.invoke('auth:status'),
+  signIn: () => ipcRenderer.invoke('auth:sign-in'),
+  signOut: () => ipcRenderer.invoke('auth:sign-out'),
   anatomyAtlasStatus: () => ipcRenderer.invoke('anatomy-atlas:status'),
   prepareAnatomyAtlas: () => ipcRenderer.invoke('anatomy-atlas:prepare'),
   onAnatomyAtlasProgress: (callback) => {

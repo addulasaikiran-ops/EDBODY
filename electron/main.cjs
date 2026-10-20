@@ -1,10 +1,11 @@
-const { app, BrowserWindow, dialog, ipcMain, protocol } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, protocol, shell } = require('electron');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 const fsSync = require('node:fs');
 const { Readable } = require('node:stream');
 const { isTrustedRendererUrl, isTrustedIpcSender } = require('./security.cjs');
+const oidc = require('./oidc.cjs');
 const anatomyAtlas = require('../tools/anatomy-atlas/integration.cjs');
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -16,6 +17,60 @@ let activeSegmentationChild = null;
 let segmentationJobStarting = false;
 let segmentationCancelRequested = false;
 let atlasBuildPromise = null;
+let authSession = null;
+let authLoginPromise = null;
+
+
+function publicAuthStatus() {
+  if (authSession && Date.now() >= authSession.expiresAt) authSession = null;
+  let configured = false;
+  try {
+    oidc.readDesktopConfig(process.env);
+    configured = true;
+  } catch {
+    configured = false;
+  }
+  return {
+    configured,
+    authenticated: Boolean(authSession),
+    roles: authSession ? [...authSession.roles] : [],
+    expiresAt: authSession ? authSession.expiresAt : null,
+  };
+}
+
+async function verifyAccessTokenWithBackend(config, accessToken) {
+  const sessionUrl = new URL('/v1/security/session', config.apiBaseUrl).toString();
+  let response;
+  try {
+    response = await fetch(sessionUrl, {
+      method: 'GET',
+      headers: { authorization: 'Bearer ' + accessToken, accept: 'application/json' },
+      redirect: 'error',
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    throw new Error('EDBODY could not reach its configured API to verify the sign-in. Check the API URL and network connection.');
+  }
+  if (!response.ok) {
+    throw new Error('The EDBODY API rejected the access token. Confirm the issuer, API audience, token profile, and backend configuration match.');
+  }
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error('The EDBODY API returned an invalid session response.');
+  }
+  const allowedRoles = new Set(['clinician', 'researcher', 'data_steward']);
+  if (
+    !payload ||
+    payload.authenticated !== true ||
+    !Array.isArray(payload.roles) ||
+    payload.roles.some((role) => typeof role !== 'string' || !allowedRoles.has(role))
+  ) {
+    throw new Error('The EDBODY API returned an invalid or unsupported session response.');
+  }
+  return payload.roles;
+}
 
 function anatomyAtlasDataDir() {
   return path.join(app.getPath('userData'), 'anatomy-atlas');
@@ -289,6 +344,47 @@ registerTrustedIpcHandler('totalsegmentator:run', async (event, options) => {
 });
 
 
+
+registerTrustedIpcHandler('auth:status', async () => publicAuthStatus());
+
+registerTrustedIpcHandler('auth:sign-in', async () => {
+  if (authSession && Date.now() < authSession.expiresAt) return publicAuthStatus();
+  if (authLoginPromise) throw new Error('An EDBODY sign-in attempt is already in progress.');
+
+  const job = (async () => {
+    const config = oidc.readDesktopConfig(process.env);
+    const result = await oidc.authorizeWithOidc({
+      config,
+      openExternal: (authorizationUrl) => shell.openExternal(authorizationUrl),
+    });
+    // The access token remains exclusively in this Electron main-process memory.
+    // It is never returned over IPC or persisted to disk.
+    const roles = await verifyAccessTokenWithBackend(config, result.accessToken);
+    authSession = {
+      accessToken: result.accessToken,
+      roles,
+      expiresAt: result.expiresAt,
+    };
+    return publicAuthStatus();
+  })();
+
+  authLoginPromise = job;
+  try {
+    return await job;
+  } catch (error) {
+    authSession = null;
+    throw new Error(error && typeof error.message === 'string' ? error.message : 'EDBODY sign-in did not complete.');
+  } finally {
+    if (authLoginPromise === job) authLoginPromise = null;
+  }
+});
+
+registerTrustedIpcHandler('auth:sign-out', async () => {
+  // Access tokens are memory-only and are discarded on sign-out or app exit.
+  authSession = null;
+  return publicAuthStatus();
+});
+
 registerTrustedIpcHandler('anatomy-atlas:status', async () => anatomyAtlas.status(anatomyAtlasDataDir()));
 
 registerTrustedIpcHandler('anatomy-atlas:prepare', async () => {
@@ -331,4 +427,5 @@ app.whenReady().then(() => {
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
+app.on('before-quit', () => { authSession = null; authLoginPromise = null; });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

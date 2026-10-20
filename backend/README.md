@@ -59,7 +59,7 @@ Do not submit real patient data. Do not bind the service to a network interface 
 
 Configure the backend process environment with `EDBODY_OIDC_ISSUER`, `EDBODY_OIDC_AUDIENCE`, and `EDBODY_OIDC_JWKS_URL`. Optionally set `EDBODY_OIDC_ROLE_CLAIM` if the trusted provider uses a different top-level claim than `roles`. Issuer and JWKS URLs must be HTTPS; the verifier accepts RS256 JWT access tokens with `typ=at+jwt` or `application/at+jwt`, and validates signature, issuer, audience, expiry and required RFC 9068 claims.
 
-The backend does not perform interactive sign-in or configure an institutional provider for you. See [Authentication and Authorization](../docs/AUTHENTICATION-AUTHORIZATION.md) for setup assumptions and failure behavior. Without OIDC configuration, requests to the session endpoint fail closed with HTTP 503. Missing/invalid bearer tokens return HTTP 401.
+The backend does not perform interactive sign-in or configure an institutional provider for you. The Electron application implements a provider-configurable system-browser Authorization Code + PKCE flow; see [Desktop Authentication](../docs/DESKTOP-AUTHENTICATION.md) for its environment variables and provider requirements. See [Authentication and Authorization](../docs/AUTHENTICATION-AUTHORIZATION.md) for API verifier behavior and failure semantics. Without OIDC configuration, requests to the session endpoint fail closed with HTTP 503. Missing/invalid bearer tokens return HTTP 401.
 
 ## FastAPI authorization dependency
 

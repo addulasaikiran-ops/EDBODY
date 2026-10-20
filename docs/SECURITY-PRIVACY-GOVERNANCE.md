@@ -4,7 +4,7 @@
 
 ## Current boundary
 
-As of this change, EDBODY has a hardened Electron renderer boundary, a local FastAPI health endpoint, an OIDC JWT access-token verifier, a protected self-session route, typed synthetic observation contracts, and a reusable FastAPI dependency that composes role/consent checks with required audit writes. **No identity provider has been configured**, no interactive login flow exists, and the reusable protected-route dependency is not attached to any patient-data endpoint. There is no database, authoritative consent store, encryption key service, or durable append-only audit sink.
+EDBODY has a hardened Electron renderer boundary, an OIDC JWT access-token verifier, a protected self-session route, a configurable Electron system-browser Authorization Code + PKCE flow, typed synthetic observation contracts, and a reusable FastAPI dependency that composes role/consent checks with required audit writes. **No actual identity provider has been configured or verified**, and the sign-in flow has not yet been integration-tested against an institution. The reusable protected-route dependency is not attached to any patient-data endpoint. There is no database, authoritative consent store, encryption key service, or durable append-only audit sink.
 
 **Do not put real patient data into EDBODY.** No user or institution has completed a security/privacy review through this change. Passing tests is not proof of legal, regulatory, or clinical compliance.
 
@@ -79,8 +79,8 @@ Applicable institutional policies and laws must be determined with the responsib
 
 ## Tests and acceptance gates
 
-The tests cover allowed and denied policy decisions, missing/inactive/revoked/future/expired grants, subject mismatch, role restrictions, action/purpose scope, timestamp handling, JWT signature/issuer/audience/expiry/type and claim validation, protected session behavior, FastAPI authorization dependency integration, audit-sink failure, grant lifecycle consistency, and immutable audit-event structure. The HTTP API still exposes no patient-data route.
+The tests cover allowed and denied policy decisions, missing/inactive/revoked/future/expired grants, subject mismatch, role restrictions, action/purpose scope, timestamp handling, JWT signature/issuer/audience/expiry/type and claim validation, desktop PKCE/nonce/state/token boundary helpers, protected session behavior, FastAPI authorization dependency integration, audit-sink failure, grant lifecycle consistency, and immutable audit-event structure. The HTTP API still exposes no patient-data route.
 
-Before M3 can be considered complete, EDBODY still needs a configured institutional identity provider and a safe desktop token-acquisition flow; policy enforcement on every future protected route and storage access; an authoritative consent/grant store with revocation semantics; a durable tamper-evident audit sink; secrets/key handling; retention/deletion and backup controls; integration tests against the selected identity provider and storage adapters; a reviewed threat model; and a security/privacy acceptance review.
+Before M3 can be considered complete, EDBODY still needs a configured and institution-approved identity provider plus live integration tests; policy enforcement on every future protected route and storage access; an authoritative consent/grant store with revocation semantics; a durable tamper-evident audit sink; secrets/key handling; retention/deletion and backup controls; integration tests against the selected identity provider and storage adapters; a reviewed threat model; and a security/privacy acceptance review.
 
 **Release gate:** no real patient data until these controls are implemented, integrated, independently reviewed and accepted for the target institutional deployment.
