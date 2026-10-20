@@ -285,3 +285,15 @@ def test_insecure_development_flag_does_not_allow_non_loopback_http_issuer() -> 
     }
     with pytest.raises(OIDCConfigurationError, match="must be HTTPS"):
         OIDCSettings.from_environment(config)
+
+
+
+def test_insecure_loopback_flag_does_not_allow_http_jwks_for_https_issuer() -> None:
+    config = {
+        "EDBODY_OIDC_ISSUER": ISSUER,
+        "EDBODY_OIDC_AUDIENCE": AUDIENCE,
+        "EDBODY_OIDC_JWKS_URL": "http://127.0.0.1:8080/certs",
+        "EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK": "true",
+    }
+    with pytest.raises(OIDCConfigurationError, match="must be HTTPS"):
+        OIDCSettings.from_environment(config)
