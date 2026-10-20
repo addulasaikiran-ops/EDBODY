@@ -50,7 +50,7 @@ def get_audit_sink() -> AppendOnlyAuditSink:
     """Return the configured durable audit sink; fail closed when absent."""
     try:
         return SQLiteGovernanceStore.from_environment()
-    except (StorageConfigurationError, OSError) as exc:
+    except (StorageConfigurationError, OSError, sqlite3.Error) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "audit_sink_unavailable"},
