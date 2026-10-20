@@ -1,8 +1,7 @@
 """FastAPI dependency for enforcing access, consent, and required auditing.
 
-There is deliberately no default consent database or audit sink. Applications
-must override those dependencies with reviewed implementations before adding a
-protected data route; the defaults return 503 and never allow access.
+Configured encrypted persistent storage is used for consent lookup and audit
+append. Missing/unavailable storage fails closed; no patient-data route exists.
 """
 from __future__ import annotations
 
