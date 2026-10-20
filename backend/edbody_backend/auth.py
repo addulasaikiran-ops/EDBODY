@@ -6,6 +6,7 @@ inside the verified token; request bodies and query parameters never supply role
 """
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 from dataclasses import dataclass
@@ -52,6 +53,7 @@ class OIDCSettings:
     audience: str
     jwks_url: str
     role_claim: str = DEFAULT_ROLE_CLAIM
+    allow_insecure_loopback: bool = False
 
     @classmethod
     def from_environment(
@@ -62,6 +64,7 @@ class OIDCSettings:
         audience = env.get("EDBODY_OIDC_AUDIENCE", "").strip()
         jwks_url = env.get("EDBODY_OIDC_JWKS_URL", "").strip()
         role_claim = env.get("EDBODY_OIDC_ROLE_CLAIM", DEFAULT_ROLE_CLAIM).strip()
+        allow_insecure_loopback = env.get("EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK", "").strip().lower() in {"1", "true"}
 
         missing = [
             name
@@ -78,9 +81,25 @@ class OIDCSettings:
                 + ", ".join(missing)
             )
 
+        def is_loopback_http(value: str) -> bool:
+            parts = urlparse(value)
+            try:
+                return (
+                    parts.scheme == "http"
+                    and parts.hostname is not None
+                    and (
+                        parts.hostname.lower() == "localhost"
+                        or ipaddress.ip_address(parts.hostname).is_loopback
+                    )
+                )
+            except ValueError:
+                return False
+
         issuer_parts = urlparse(issuer)
+        local_development_mode = allow_insecure_loopback and is_loopback_http(issuer)
+        issuer_transport_ok = issuer_parts.scheme == "https" or local_development_mode
         if (
-            issuer_parts.scheme != "https"
+            not issuer_transport_ok
             or not issuer_parts.netloc
             or issuer_parts.query
             or issuer_parts.fragment
@@ -88,12 +107,15 @@ class OIDCSettings:
             or issuer_parts.password is not None
         ):
             raise OIDCConfigurationError(
-                "EDBODY_OIDC_ISSUER must be an HTTPS issuer URL without query or fragment"
+                "EDBODY_OIDC_ISSUER must be HTTPS (HTTP is allowed only for loopback with EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK=true)"
             )
 
         jwks_parts = urlparse(jwks_url)
+        jwks_transport_ok = jwks_parts.scheme == "https" or (
+            local_development_mode and is_loopback_http(jwks_url)
+        )
         if (
-            jwks_parts.scheme != "https"
+            not jwks_transport_ok
             or not jwks_parts.netloc
             or jwks_parts.query
             or jwks_parts.fragment
@@ -101,7 +123,7 @@ class OIDCSettings:
             or jwks_parts.password is not None
         ):
             raise OIDCConfigurationError(
-                "EDBODY_OIDC_JWKS_URL must be an HTTPS URL without query, fragment, or embedded credentials"
+                "EDBODY_OIDC_JWKS_URL must be HTTPS (HTTP is allowed only for loopback with EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK=true)"
             )
 
         if not ROLE_CLAIM_PATTERN.fullmatch(role_claim):
@@ -114,6 +136,7 @@ class OIDCSettings:
             audience=audience,
             jwks_url=jwks_url,
             role_claim=role_claim,
+            allow_insecure_loopback=allow_insecure_loopback,
         )
 
 
@@ -139,10 +162,23 @@ def verify_access_token(
     # RFC 9068's explicit at+jwt type prevents accepting an OIDC ID token
     # as an API bearer token. Header values are still untrusted until the
     # signature is verified; this check is only an early rejection.
-    if (
-        header.get("typ") not in {"at+jwt", "application/at+jwt"}
-        or header.get("alg") != "RS256"
-    ):
+    issuer_parts = urlparse(settings.issuer)
+    loopback_http_issuer = False
+    if settings.allow_insecure_loopback and issuer_parts.scheme == "http" and issuer_parts.hostname:
+        try:
+            loopback_http_issuer = (
+                issuer_parts.hostname.lower() == "localhost"
+                or ipaddress.ip_address(issuer_parts.hostname).is_loopback
+            )
+        except ValueError:
+            loopback_http_issuer = False
+    allowed_types = {"at+jwt", "application/at+jwt"}
+    # Keycloak's local development realm emits typ=JWT rather than the RFC 9068
+    # at+jwt type. Permit that only behind the explicit insecure-loopback flag
+    # and an HTTP loopback issuer; HTTPS deployments remain strict by default.
+    if loopback_http_issuer:
+        allowed_types.add("JWT")
+    if header.get("typ") not in allowed_types or header.get("alg") != "RS256":
         raise InvalidBearerToken("token is not a supported JWT access token")
 
     client = jwks_client or _cached_jwks_client(settings.jwks_url)

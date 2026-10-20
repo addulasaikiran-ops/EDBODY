@@ -28,8 +28,9 @@ The main Electron process reads configuration from its launch environment. Value
 | `EDBODY_OIDC_AUDIENCE` | Yes | HTTPS resource identifier sent in the OAuth `resource` parameter; must match the backend's expected JWT audience exactly |
 | `EDBODY_API_BASE_URL` | Yes | API origin only, without path/query/fragment; HTTPS in deployed environments |
 | `EDBODY_OIDC_SCOPE` | No | Space-delimited scopes; defaults to `openid profile` |
+| `EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK` | No | Set to `true` only for the documented local Keycloak setup; permits HTTP only on loopback and must never be enabled in shared/deployed environments |
 
-For **local development only**, the API base URL may use loopback HTTP, such as `http://127.0.0.1:8765`. HTTP is rejected for non-loopback API hosts. The identity issuer, audience/resource identifier, and discovery/JWKS/token/authorization endpoints must use HTTPS.
+For **local development only**, the API base URL may use loopback HTTP, such as `http://127.0.0.1:8765`. HTTP is rejected for non-loopback API hosts. By default, the identity issuer, audience/resource identifier, and discovery/JWKS/token/authorization endpoints must use HTTPS. The documented local Keycloak realm is a narrow exception: set `EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK=true` in both desktop and backend processes to allow HTTP only for loopback issuer/JWKS/provider endpoints. See [Local Keycloak Development](KEYCLOAK-LOCAL-DEVELOPMENT.md); do not use this exception in any shared environment.
 
 PowerShell example (replace placeholders with the values from your trusted provider and API deployment):
 

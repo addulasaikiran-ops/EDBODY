@@ -198,7 +198,7 @@ def test_oidc_configuration_rejects_insecure_http_urls() -> None:
         "EDBODY_OIDC_JWKS_URL": JWKS_URL,
     }
 
-    with pytest.raises(OIDCConfigurationError, match="must be an HTTPS issuer"):
+    with pytest.raises(OIDCConfigurationError, match="must be HTTPS"):
         OIDCSettings.from_environment(config)
 
 
@@ -228,3 +228,72 @@ def test_required_access_token_profile_claims_cannot_be_omitted(
         verify_access_token(
             token, settings, jwks_client=StaticJwksClient(public_key)  # type: ignore[arg-type]
         )
+
+
+
+def test_keycloak_jwt_typ_is_accepted_only_for_explicit_loopback_development(
+    signing_keys: tuple[object, object],
+) -> None:
+    private_key, public_key = signing_keys
+    local_issuer = "http://127.0.0.1:8080/realms/edbody-local"
+    local_settings = OIDCSettings(
+        issuer=local_issuer,
+        audience=AUDIENCE,
+        jwks_url="http://127.0.0.1:8080/realms/edbody-local/protocol/openid-connect/certs",
+        allow_insecure_loopback=True,
+    )
+    token = issue_token(private_key, issuer=local_issuer, token_type="JWT")
+
+    principal = verify_access_token(
+        token, local_settings, jwks_client=StaticJwksClient(public_key)  # type: ignore[arg-type]
+    )
+    assert principal.roles == ("researcher",)
+
+    production_settings = OIDCSettings(
+        issuer=local_issuer,
+        audience=AUDIENCE,
+        jwks_url=local_settings.jwks_url,
+        allow_insecure_loopback=False,
+    )
+    with pytest.raises(InvalidBearerToken, match="not a supported JWT access token"):
+        verify_access_token(
+            token, production_settings, jwks_client=StaticJwksClient(public_key)  # type: ignore[arg-type]
+        )
+
+
+def test_loopback_http_oidc_configuration_requires_explicit_development_flag() -> None:
+    config = {
+        "EDBODY_OIDC_ISSUER": "http://127.0.0.1:8080/realms/edbody-local",
+        "EDBODY_OIDC_AUDIENCE": AUDIENCE,
+        "EDBODY_OIDC_JWKS_URL": "http://127.0.0.1:8080/realms/edbody-local/protocol/openid-connect/certs",
+    }
+    with pytest.raises(OIDCConfigurationError, match="must be HTTPS"):
+        OIDCSettings.from_environment(config)
+
+    config["EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK"] = "true"
+    settings = OIDCSettings.from_environment(config)
+    assert settings.allow_insecure_loopback is True
+    assert settings.issuer == config["EDBODY_OIDC_ISSUER"]
+
+
+def test_insecure_development_flag_does_not_allow_non_loopback_http_issuer() -> None:
+    config = {
+        "EDBODY_OIDC_ISSUER": "http://identity.example.test/realms/edbody-local",
+        "EDBODY_OIDC_AUDIENCE": AUDIENCE,
+        "EDBODY_OIDC_JWKS_URL": "http://127.0.0.1:8080/certs",
+        "EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK": "true",
+    }
+    with pytest.raises(OIDCConfigurationError, match="must be HTTPS"):
+        OIDCSettings.from_environment(config)
+
+
+
+def test_insecure_loopback_flag_does_not_allow_http_jwks_for_https_issuer() -> None:
+    config = {
+        "EDBODY_OIDC_ISSUER": ISSUER,
+        "EDBODY_OIDC_AUDIENCE": AUDIENCE,
+        "EDBODY_OIDC_JWKS_URL": "http://127.0.0.1:8080/certs",
+        "EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK": "true",
+    }
+    with pytest.raises(OIDCConfigurationError, match="must be HTTPS"):
+        OIDCSettings.from_environment(config)
