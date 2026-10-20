@@ -45,6 +45,20 @@ test('desktop OIDC config requires explicit trusted provider and API values', ()
   assert.equal(config.scope, 'openid profile');
 });
 
+test('OIDC issuer and audience identifiers retain exact trailing slashes', () => {
+  const config = oidc.readDesktopConfig({
+    ...validEnv,
+    EDBODY_OIDC_ISSUER: 'https://identity.example.test/tenant/',
+    EDBODY_OIDC_AUDIENCE: 'https://edbody-api.example.test/resource/',
+  });
+  assert.equal(config.issuer, 'https://identity.example.test/tenant/');
+  assert.equal(config.audience, 'https://edbody-api.example.test/resource/');
+  assert.equal(
+    oidc.discoveryUrl(config.issuer),
+    'https://identity.example.test/tenant/.well-known/openid-configuration',
+  );
+});
+
 test('HTTP is rejected for external API hosts and identity issuer must use HTTPS', () => {
   assert.throws(
     () => oidc.readDesktopConfig({ ...validEnv, EDBODY_OIDC_ISSUER: 'http://identity.example.test' }),
