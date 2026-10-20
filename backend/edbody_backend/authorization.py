@@ -1,12 +1,12 @@
 """FastAPI dependency for enforcing access, consent, and required auditing.
 
-There is deliberately no default consent database or audit sink. Applications
-must override those dependencies with reviewed implementations before adding a
-protected data route; the defaults return 503 and never allow access.
+Configured encrypted persistent storage is used for consent lookup and audit
+append. Missing/unavailable storage fails closed; no patient-data route exists.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import sqlite3
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, status
 
 from .audit import AccessAuditEvent, AppendOnlyAuditSink
 from .auth import get_current_principal
+from .storage import SQLiteGovernanceStore, StorageConfigurationError
 from .governance import (
     AccessDecision,
     AccessPrincipal,
@@ -35,19 +36,25 @@ class ConsentGrantRepository(Protocol):
 
 
 def get_consent_grant_repository() -> ConsentGrantRepository:
-    """Replace only with a reviewed repository backed by authoritative records."""
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail={"code": "consent_store_unavailable"},
-    )
+    """Return the configured persistent store; fail closed when absent."""
+    try:
+        return SQLiteGovernanceStore.from_environment()
+    except (StorageConfigurationError, OSError, sqlite3.Error) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "consent_store_unavailable"},
+        ) from exc
 
 
 def get_audit_sink() -> AppendOnlyAuditSink:
-    """Replace only with a durable sink for immutable allow/deny events."""
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail={"code": "audit_sink_unavailable"},
-    )
+    """Return the configured durable audit sink; fail closed when absent."""
+    try:
+        return SQLiteGovernanceStore.from_environment()
+    except (StorageConfigurationError, OSError, sqlite3.Error) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "audit_sink_unavailable"},
+        ) from exc
 
 
 def require_authorized_action(
