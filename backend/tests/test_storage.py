@@ -18,10 +18,10 @@ def make_grant(*, status="active", consent_id=None, subject_id=None, recorded_at
         status=status,
         permitted_actions=("read_observation",),
         permitted_purposes=("research",),
-        effective_at=now - timedelta(minutes=1),
+        effective_at=(now - timedelta(minutes=1)).isoformat(),
         expires_at=None,
-        revoked_at=now if status == "revoked" else None,
-        recorded_at=recorded_at or now,
+        revoked_at=now.isoformat() if status == "revoked" else None,
+        recorded_at=(recorded_at or now).isoformat(),
         recorded_by_reference=uuid4(),
     )
 
