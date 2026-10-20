@@ -96,9 +96,8 @@ class OIDCSettings:
                 return False
 
         issuer_parts = urlparse(issuer)
-        issuer_transport_ok = issuer_parts.scheme == "https" or (
-            allow_insecure_loopback and is_loopback_http(issuer)
-        )
+        local_development_mode = allow_insecure_loopback and is_loopback_http(issuer)
+        issuer_transport_ok = issuer_parts.scheme == "https" or local_development_mode
         if (
             not issuer_transport_ok
             or not issuer_parts.netloc
@@ -113,7 +112,7 @@ class OIDCSettings:
 
         jwks_parts = urlparse(jwks_url)
         jwks_transport_ok = jwks_parts.scheme == "https" or (
-            allow_insecure_loopback and is_loopback_http(jwks_url)
+            local_development_mode and is_loopback_http(jwks_url)
         )
         if (
             not jwks_transport_ok
