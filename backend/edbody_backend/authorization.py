@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, status
 
 from .audit import AccessAuditEvent, AppendOnlyAuditSink
 from .auth import get_current_principal
+from .storage import SQLiteGovernanceStore, StorageConfigurationError
 from .governance import (
     AccessDecision,
     AccessPrincipal,
@@ -35,19 +36,25 @@ class ConsentGrantRepository(Protocol):
 
 
 def get_consent_grant_repository() -> ConsentGrantRepository:
-    """Replace only with a reviewed repository backed by authoritative records."""
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail={"code": "consent_store_unavailable"},
-    )
+    """Return the configured persistent store; fail closed when absent."""
+    try:
+        return SQLiteGovernanceStore.from_environment()
+    except (StorageConfigurationError, OSError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "consent_store_unavailable"},
+        ) from exc
 
 
 def get_audit_sink() -> AppendOnlyAuditSink:
-    """Replace only with a durable sink for immutable allow/deny events."""
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail={"code": "audit_sink_unavailable"},
-    )
+    """Return the configured durable audit sink; fail closed when absent."""
+    try:
+        return SQLiteGovernanceStore.from_environment()
+    except (StorageConfigurationError, OSError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "audit_sink_unavailable"},
+        ) from exc
 
 
 def require_authorized_action(
