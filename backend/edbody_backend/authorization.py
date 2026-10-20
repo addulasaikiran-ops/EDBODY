@@ -7,6 +7,7 @@ protected data route; the defaults return 503 and never allow access.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import sqlite3
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -39,7 +40,7 @@ def get_consent_grant_repository() -> ConsentGrantRepository:
     """Return the configured persistent store; fail closed when absent."""
     try:
         return SQLiteGovernanceStore.from_environment()
-    except (StorageConfigurationError, OSError) as exc:
+    except (StorageConfigurationError, OSError, sqlite3.Error) as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "consent_store_unavailable"},
