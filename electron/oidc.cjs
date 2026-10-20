@@ -161,8 +161,10 @@ async function discoverProvider(config, fetchImpl = fetch) {
       !metadata.code_challenge_methods_supported.includes('S256')) {
     throw new OidcFlowError('The identity provider does not support PKCE S256.');
   }
+  const localLoopbackIssuer = config.allowInsecureLoopback === true &&
+    new URL(config.issuer).protocol === 'http:' && isLoopbackHost(new URL(config.issuer).hostname);
   if (Array.isArray(metadata.token_endpoint_auth_methods_supported) &&
-      !metadata.token_endpoint_auth_methods_supported.includes('none')) {
+      !metadata.token_endpoint_auth_methods_supported.includes('none') && !localLoopbackIssuer) {
     throw new OidcFlowError('The identity provider does not advertise support for public-client token exchange without a client secret.');
   }
   if (Array.isArray(metadata.id_token_signing_alg_values_supported) &&
