@@ -34,7 +34,7 @@ export async function inspectOidcProvider({ issuer, clientId, audience, fetchImp
   if (!clientId?.trim()) throw new Error("EDBODY_OIDC_CLIENT_ID is required");
   requiredHttpsUrl(audience, "EDBODY_OIDC_AUDIENCE");
 
-  const discoveryUrl = `${configuredIssuer.replace(/\\/+$/, "")}/.well-known/openid-configuration`;
+  const discoveryUrl = `${configuredIssuer.replace(/\/+$/, "")}/.well-known/openid-configuration`;
   const metadata = await readJson(fetchImpl, discoveryUrl, "OIDC discovery");
   if (metadata.issuer !== configuredIssuer) {
     throw new Error("Discovery issuer does not exactly match EDBODY_OIDC_ISSUER");
