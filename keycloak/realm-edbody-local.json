@@ -22,7 +22,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": true,
-      "redirectUris": ["http://127.0.0.1:*/*"],
+      "redirectUris": ["http://127.0.0.1/oauth2/callback"],
       "webOrigins": [],
       "attributes": {
         "pkce.code.challenge.method": "S256",
