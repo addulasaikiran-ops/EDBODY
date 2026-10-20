@@ -447,3 +447,100 @@ test('discovery rejects providers that require a client secret', async () => {
     /without a client secret/,
   );
 });
+
+
+test('authorization-code exchange rejects unsuccessful and malformed token responses', async () => {
+  const config = oidc.readDesktopConfig(validEnv);
+  const metadata = { token_endpoint: 'https://identity.example.test/token' };
+  const basePayload = {
+    access_token: 'synthetic-access-token',
+    id_token: 'synthetic-id-token',
+    token_type: 'Bearer',
+    expires_in: 300,
+  };
+  const invalidResponses = [
+    { name: 'HTTP rejection', response: responseJson({ error: 'invalid_grant' }, { ok: false, status: 400 }) },
+    { name: 'missing access token', response: responseJson({ ...basePayload, access_token: '' }) },
+    { name: 'wrong token type', response: responseJson({ ...basePayload, token_type: 'MAC' }) },
+    { name: 'zero expiry', response: responseJson({ ...basePayload, expires_in: 0 }) },
+    { name: 'excessive expiry', response: responseJson({ ...basePayload, expires_in: 86401 }) },
+    { name: 'string expiry', response: responseJson({ ...basePayload, expires_in: '300' }) },
+  ];
+
+  for (const item of invalidResponses) {
+    await assert.rejects(
+      oidc.exchangeAuthorizationCode({
+        config,
+        metadata,
+        code: 'synthetic-code',
+        redirectUri: 'http://127.0.0.1:49152/oauth2/callback',
+        verifier: 'synthetic-verifier',
+        fetchImpl: async (url, options) => {
+          assert.equal(url, metadata.token_endpoint);
+          assert.equal(options.method, 'POST');
+          assert.equal(options.redirect, 'error');
+          assert.equal(new URLSearchParams(options.body).has('client_secret'), false);
+          return item.response;
+        },
+      }),
+      /authorization-code exchange|unsupported token response/,
+      item.name,
+    );
+  }
+});
+
+test('loopback receiver rejects an identity-provider denial without accepting a code', async () => {
+  const expectedState = 'synthetic-denial-state';
+  const receiver = oidc.startLoopbackReceiver({ expectedState, timeoutMs: 5000 });
+  try {
+    await receiver.ready;
+    const uri = new URL(receiver.redirectUri);
+    const responsePromise = new Promise((resolve, reject) => {
+      const request = http.get({
+        hostname: '127.0.0.1',
+        port: Number(uri.port),
+        path: uri.pathname + '?state=' + encodeURIComponent(expectedState) + '&error=access_denied',
+        headers: { host: uri.host },
+      }, (response) => {
+        response.resume();
+        response.on('end', () => resolve(response.statusCode));
+      });
+      request.on('error', reject);
+    });
+
+    await assert.rejects(receiver.response, /did not complete sign-in/);
+    assert.equal(await responsePromise, 400);
+  } finally {
+    receiver.close();
+  }
+});
+
+test('browser-launch failure stops sign-in before token exchange', async () => {
+  const config = oidc.readDesktopConfig(validEnv);
+  const metadata = {
+    issuer: config.issuer,
+    authorization_endpoint: 'https://identity.example.test/authorize',
+    token_endpoint: 'https://identity.example.test/token',
+    jwks_uri: 'https://identity.example.test/jwks',
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code'],
+    code_challenge_methods_supported: ['S256'],
+    token_endpoint_auth_methods_supported: ['none'],
+    id_token_signing_alg_values_supported: ['RS256'],
+  };
+  let tokenEndpointCalled = false;
+  await assert.rejects(
+    oidc.authorizeWithOidc({
+      config,
+      timeoutMs: 5000,
+      fetchImpl: async (url) => {
+        if (url === oidc.discoveryUrl(config.issuer)) return responseJson(metadata);
+        if (url === metadata.token_endpoint) tokenEndpointCalled = true;
+        throw new Error('Unexpected network request.');
+      },
+      openExternal: async () => { throw new Error('synthetic browser-launch failure'); },
+    }),
+    /Could not open the system browser/,
+  );
+  assert.equal(tokenEndpointCalled, false);
+});
