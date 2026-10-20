@@ -55,6 +55,18 @@ test('local Keycloak discovery permits HTTP endpoints only on loopback', async (
     OidcFlowError,
   );
 
+  const mixedConfig = readDesktopConfig({
+    ...localEnv,
+    EDBODY_OIDC_ISSUER: secureConfig.issuer,
+    EDBODY_OIDC_ALLOW_INSECURE_LOOPBACK: 'true',
+  });
+  assert.equal(mixedConfig.allowInsecureLoopback, false);
+  const mixedMetadata = { ...metadata, issuer: mixedConfig.issuer };
+  await assert.rejects(
+    discoverProvider(mixedConfig, async () => ({ ok: true, json: async () => mixedMetadata })),
+    OidcFlowError,
+  );
+
   const unsafeMetadata = { ...metadata, token_endpoint: 'http://identity.example.test/token' };
   await assert.rejects(
     discoverProvider(config, async () => ({ ok: true, json: async () => unsafeMetadata })),
