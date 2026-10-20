@@ -10,9 +10,4 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./realm-edbody-local.json:/opt/keycloak/data/import/edbody-local-realm.json:ro
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
     restart: unless-stopped
