@@ -60,7 +60,7 @@ def read_observations(
 
 The dependency gets the principal from `get_current_principal`, loads an authoritative effective grant from the repository dependency, evaluates the role/subject/action/purpose/time policy, and appends an allow/deny event before allowing the handler to run. Caller-supplied role or consent data is not accepted as proof.
 
-However, the default consent-repository and audit-sink dependencies deliberately return `503`. No concrete implementations exist yet. A future endpoint must not override those with caller-supplied data or an in-memory production fallback. Implement and review the authoritative consent/grant repository and durable audit sink before adding a route that reads/writes health information.
+The default consent-repository and audit-sink dependencies now use the encrypted SQLite adapter when `EDBODY_STORAGE_PATH` and `EDBODY_STORAGE_KEY` are configured; otherwise they fail closed with `503`. The adapter persists encrypted grant revisions and encrypted hash-chained audit events. It is not a guarantee against a privileged database administrator, does not use a KMS/HSM, and has not been institutionally reviewed. Do not override these dependencies with caller-supplied data or an in-memory fallback. See [Consent and Audit Storage](CONSENT-AUDIT-STORAGE.md). No consent-capture endpoint or patient-data route exists yet.
 
 ## What is still required
 
